@@ -1,0 +1,11 @@
+{
+    "name": "demineur",
+    "version": "1.0.0",
+    "private": true,
+    "description": "Demineur statique, grilles garanties sans hasard, jouable hors ligne.",
+    "type": "module",
+    "scripts": {
+        "test": "node tests/test-board.mjs && node tests/test-solver.mjs && node tests/test-generator.mjs && node tests/test-engine.mjs",
+        "serve": "python3 -m http.server 8765"
+    }
+}

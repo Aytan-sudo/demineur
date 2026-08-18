@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Démineur">
+  <rect width="512" height="512" rx="112" fill="#0d1117"/>
+  <rect x="56" y="56" width="400" height="400" rx="72" fill="#1e2534"/>
+  <g stroke="#e7002a" stroke-width="30" stroke-linecap="round">
+    <path d="M256 118v276M118 256h276M158 158l196 196M354 158L158 354"/>
+  </g>
+  <circle cx="256" cy="256" r="94" fill="#e7002a"/>
+  <circle cx="224" cy="222" r="26" fill="#ffffff" opacity="0.55"/>
+</svg>
