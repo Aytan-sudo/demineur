@@ -133,12 +133,12 @@ plateau et de chiffres se composent toutes en quelques millisecondes.
 ## Développement
 
 ```bash
-npm test        # 146 vérifications sur le noyau, sans navigateur
+npm test        # 155 vérifications sur le noyau, sans navigateur
 npm run serve   # http://localhost:8765
 ```
 
-Le noyau (plateau, variantes, solveur, générateur, règles, défi) ne touche pas
-au DOM : il se teste directement en Node.
+Le noyau (plateau, variantes, solveur, générateur, règles, défi, classement) ne
+touche pas au DOM : il se teste directement en Node.
 
 ## Ce qui n'est pas là
 
