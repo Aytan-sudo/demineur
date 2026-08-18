@@ -34,8 +34,6 @@ export const elements = {
     dialogueAide: $('dialogue-aide')
 };
 
-construireSegmentsDeTheme();
-
 export function formaterTemps(ms) {
     const total = Math.max(0, Math.floor(ms / 1000));
     const minutes = Math.floor(total / 60);
@@ -72,6 +70,8 @@ function construireSegmentsDeTheme() {
         + `<span class="pastille" data-apercu="${id}" aria-hidden="true"></span>${libelle}</button>`
     ).join('');
 }
+
+construireSegmentsDeTheme();
 
 // Applique le theme et accorde la barre du navigateur avec : sur telephone,
 // une barre d'adresse restee sombre au-dessus d'une page claire se voit.
