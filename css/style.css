@@ -1,18 +1,233 @@
 /* Démineur — feuille de style unique.
-   Thème sombre assumé, comme le reste du hub : la grille est un aplat de gris
-   bleutés, et la couleur ne sert qu'à l'information (chiffres, drapeau, dégâts). */
+   Deux thèmes, clair par défaut. Toutes les couleurs vivent ici, y compris
+   celles de la grille : le canvas les relit dans ces variables plutôt que d'en
+   garder une seconde copie dans le JavaScript. */
 
 :root {
+    --bg: #f2f5f9;
+    --panel: #ffffff;
+    --panel-clair: #e9eef6;
+    --panel-creux: #eef2f8;
+    --text: #16202e;
+    --texte-doux: #35435a;
+    --muted: #5d6a7d;
+    --border: #d3dbe7;
+    --border-vif: #b6c2d4;
+    --accent: #1668c9;
+    --accent-fond: #dae8fa;
+    --accent-texte: #ffffff;
+    --rouge: #d1002a;
+    --or: #b47800;
+    --voile: rgba(255, 255, 255, 0.9);
+    --voile-fort: rgba(24, 34, 48, 0.35);
+    --danger-fond: #ffe3e8;
+    --danger-texte: #8c0016;
+    --danger-bord: #f2c2ca;
+
+    /* la grille */
+    --grille-fond: #e6ebf2;
+    --case-fermee: #c3ccdb;
+    --case-enfoncee: #adb9cb;
+    --case-ouverte: #f6f8fc;
+    --case-explosee: #ffc9d2;
+    --mine: #4b5769;
+    --mine-explosee: #8c0016;
+    --drapeau-mat: #3c4759;
+    --doute: #5d6a7d;
+    --indice: #d99400;
+    --eclat-explosion: 209, 0, 42;
+
+    --chiffre-1: #1565c0;
+    --chiffre-2: #2e7d32;
+    --chiffre-3: #c62828;
+    --chiffre-4: #6a1b9a;
+    --chiffre-5: #d84315;
+    --chiffre-6: #00838f;
+    --chiffre-7: #ad1457;
+    --chiffre-8: #37474f;
+
+    --radius: 12px;
+}
+
+:root[data-theme="sombre"] {
     --bg: #0d1117;
     --panel: #161b26;
     --panel-clair: #1e2534;
+    --panel-creux: #121826;
     --text: #f2f5f9;
+    --texte-doux: #d6dce7;
     --muted: #98a2b3;
     --border: #2a3242;
+    --border-vif: #3b465c;
     --accent: #4aa3ff;
+    --accent-fond: #14283d;
+    --accent-texte: #04121f;
     --rouge: #e7002a;
+    --or: #ffbd00;
+    --voile: rgba(22, 27, 38, 0.92);
+    --voile-fort: rgba(5, 8, 14, 0.72);
+    --danger-fond: #3a1220;
+    --danger-texte: #ffd7dd;
+    --danger-bord: #4a2029;
 
-    --radius: 12px;
+    --grille-fond: #090d13;
+    --case-fermee: #303c50;
+    --case-enfoncee: #242e3f;
+    --case-ouverte: #141a26;
+    --case-explosee: #5a1420;
+    --mine: #8b95a5;
+    --mine-explosee: #ffd7dd;
+    --drapeau-mat: #d7dde8;
+    --doute: #8b95a5;
+    --indice: #ffbd00;
+    --eclat-explosion: 231, 0, 42;
+
+    --chiffre-1: #4aa3ff;
+    --chiffre-2: #3ddc84;
+    --chiffre-3: #ff6b6b;
+    --chiffre-4: #b98cff;
+    --chiffre-5: #ffb454;
+    --chiffre-6: #35d6c8;
+    --chiffre-7: #ff8bd1;
+    --chiffre-8: #c3ccd9;
+}
+
+/* ------------------------------------------------------------------ papier */
+/* Clair mais chaud : crème et encre brune. Les chiffres restent la palette
+   classique du démineur, assombrie pour tenir sur un fond ivoire. */
+:root[data-theme="papier"] {
+    --bg: #f4ecdd;
+    --panel: #fffaf0;
+    --panel-clair: #eadfc9;
+    --panel-creux: #efe5d2;
+    --text: #3a2f21;
+    --texte-doux: #554835;
+    --muted: #7d6b52;
+    --border: #ddcdb0;
+    --border-vif: #c4ae8a;
+    --accent: #a35a1e;
+    --accent-fond: #f0dcc2;
+    --accent-texte: #fff8ee;
+    --rouge: #b3261e;
+    --or: #9a6b00;
+    --voile: rgba(255, 250, 240, 0.94);
+    --voile-fort: rgba(58, 47, 33, 0.45);
+    --danger-fond: #f7dcd8;
+    --danger-texte: #7a1c16;
+    --danger-bord: #e2bdb6;
+
+    --grille-fond: #eadfc9;
+    --case-fermee: #d6c3a1;
+    --case-enfoncee: #c3ae8a;
+    --case-ouverte: #fbf5e9;
+    --case-explosee: #edb9b2;
+    --mine: #4a3a28;
+    --mine-explosee: #7a1c16;
+    --drapeau-mat: #4a3a28;
+    --doute: #7d6b52;
+    --indice: #b07d10;
+    --eclat-explosion: 179, 38, 30;
+
+    --chiffre-1: #1d5fa8;
+    --chiffre-2: #2f6b32;
+    --chiffre-3: #b3261e;
+    --chiffre-4: #6b3fa0;
+    --chiffre-5: #a15218;
+    --chiffre-6: #17707a;
+    --chiffre-7: #9c2b60;
+    --chiffre-8: #4a3a28;
+}
+
+/* -------------------------------------------------------------------- nuit */
+/* Sombre sans bleu : le pendant nocturne de « papier », pour les parties tard
+   le soir où un écran bleuté tient éveillé. */
+:root[data-theme="nuit"] {
+    --bg: #16120e;
+    --panel: #221c16;
+    --panel-clair: #2c241c;
+    --panel-creux: #1c1712;
+    --text: #f6ecdf;
+    --texte-doux: #e0d3c2;
+    --muted: #a89684;
+    --border: #3a2f24;
+    --border-vif: #55452f;
+    --accent: #f0a53a;
+    --accent-fond: #3a2a12;
+    --accent-texte: #1d1408;
+    --rouge: #ff6b52;
+    --or: #ffc65c;
+    --voile: rgba(34, 28, 22, 0.94);
+    --voile-fort: rgba(10, 7, 5, 0.72);
+    --danger-fond: #3d1a14;
+    --danger-texte: #ffd9cf;
+    --danger-bord: #5a2a20;
+
+    --grille-fond: #100d0a;
+    --case-fermee: #3b3128;
+    --case-enfoncee: #2c241c;
+    --case-ouverte: #1b1611;
+    --case-explosee: #5a2118;
+    --mine: #a89684;
+    --mine-explosee: #ffd9cf;
+    --drapeau-mat: #e0d3c2;
+    --doute: #a89684;
+    --indice: #ffc65c;
+    --eclat-explosion: 255, 107, 82;
+
+    --chiffre-1: #6fb2ff;
+    --chiffre-2: #7fd18a;
+    --chiffre-3: #ff8a72;
+    --chiffre-4: #d9a3ff;
+    --chiffre-5: #ffc65c;
+    --chiffre-6: #6ed6c8;
+    --chiffre-7: #ff9ec4;
+    --chiffre-8: #d6c7b4;
+}
+
+/* --------------------------------------------------------------- contraste */
+/* Noir franc, bordures marquées, couleurs saturées : pour un écran en plein
+   soleil, ou simplement pour qui a besoin de plus de contraste que le reste. */
+:root[data-theme="contraste"] {
+    --bg: #000000;
+    --panel: #0d0d0d;
+    --panel-clair: #1c1c1c;
+    --panel-creux: #131313;
+    --text: #ffffff;
+    --texte-doux: #f2f2f2;
+    --muted: #c6c6c6;
+    --border: #575757;
+    --border-vif: #8a8a8a;
+    --accent: #ffe000;
+    --accent-fond: #3a3300;
+    --accent-texte: #000000;
+    --rouge: #ff4040;
+    --or: #ffe000;
+    --voile: rgba(0, 0, 0, 0.94);
+    --voile-fort: rgba(0, 0, 0, 0.8);
+    --danger-fond: #3d0000;
+    --danger-texte: #ffd7d7;
+    --danger-bord: #7a1a1a;
+
+    --grille-fond: #000000;
+    --case-fermee: #4f4f4f;
+    --case-enfoncee: #303030;
+    --case-ouverte: #101010;
+    --case-explosee: #8a0000;
+    --mine: #ffffff;
+    --mine-explosee: #ffffff;
+    --drapeau-mat: #ffffff;
+    --doute: #ffffff;
+    --indice: #ffe000;
+    --eclat-explosion: 255, 64, 64;
+
+    --chiffre-1: #55b3ff;
+    --chiffre-2: #4ee06a;
+    --chiffre-3: #ff5a5a;
+    --chiffre-4: #c98cff;
+    --chiffre-5: #ffb02e;
+    --chiffre-6: #33e6d6;
+    --chiffre-7: #ff7ac2;
+    --chiffre-8: #ffffff;
 }
 
 * { box-sizing: border-box; }
@@ -60,6 +275,9 @@ body {
 }
 
 .icon-button {
+    /* sans cette ligne, les boutons se font ecraser par le titre sur un
+       telephone etroit, et le premier finit en ovale coupe */
+    flex: 0 0 auto;
     width: 2.2rem;
     height: 2.2rem;
     border: 1px solid var(--border);
@@ -87,8 +305,10 @@ body {
 }
 
 .icon-button svg.plein { fill: currentColor; stroke: none; }
+
+#bouton-theme .moitie { fill: currentColor; stroke: none; }
 .icon-button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
-.icon-button:hover { color: var(--text); border-color: #3b465c; }
+.icon-button:hover { color: var(--text); border-color: var(--border-vif); }
 
 /* Recette de la partie en cours : n'apparaît que si elle sort de l'ordinaire. */
 .bandeau {
@@ -97,7 +317,7 @@ body {
     text-align: center;
     font-size: 0.78rem;
     color: var(--muted);
-    background: #121826;
+    background: var(--panel-creux);
     border-bottom: 1px solid var(--border);
 }
 
@@ -191,7 +411,7 @@ main {
     margin: 0;
     padding: 0.4rem 0.9rem;
     border-radius: 999px;
-    background: rgba(22, 27, 38, 0.92);
+    background: var(--voile);
     border: 1px solid var(--border);
     color: var(--muted);
     font-size: 0.85rem;
@@ -241,7 +461,7 @@ main {
     width: 1.2rem;
     height: 1.2rem;
     fill: none;
-    stroke: #ffbd00;
+    stroke: var(--or);
     stroke-width: 1.7;
     stroke-linecap: round;
     stroke-linejoin: round;
@@ -284,9 +504,9 @@ main {
 .bascule[aria-pressed="true"] .icone-drapeau path { stroke: var(--rouge); }
 
 .bascule[aria-pressed="true"] {
-    background: #3a1220;
+    background: var(--danger-fond);
     border-color: var(--rouge);
-    color: #ffd7dd;
+    color: var(--danger-texte);
 }
 
 .astuce { margin: 0; font-size: 0.75rem; color: var(--muted); }
@@ -304,14 +524,14 @@ main {
     overflow-y: auto;
 }
 
-.dialog::backdrop { background: rgba(5, 8, 14, 0.72); }
+.dialog::backdrop { background: var(--voile-fort); }
 
 .dialog h2 { margin: 0 0 0.6rem; font-size: 1.3rem; }
 .dialog h3 { margin: 1.2rem 0 0.5rem; font-size: 0.78rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
-.dialog p { margin: 0 0 0.7rem; line-height: 1.5; color: #d6dce7; }
+.dialog p { margin: 0 0 0.7rem; line-height: 1.5; color: var(--texte-doux); }
 
 .fin-detail { font-size: 1.05rem; }
-.fin-record { color: #ffbd00; font-weight: 600; }
+.fin-record { color: var(--or); font-weight: 600; }
 
 .dialog-actions {
     display: flex;
@@ -331,8 +551,8 @@ main {
     cursor: pointer;
 }
 
-.button-primary { background: var(--accent); border-color: var(--accent); color: #04121f; }
-.button-danger { background: transparent; color: var(--rouge); border-color: #4a2029; }
+.button-primary { background: var(--accent); border-color: var(--accent); color: var(--accent-texte); }
+.button-danger { background: transparent; color: var(--rouge); border-color: var(--danger-bord); }
 
 /* segments de difficulté */
 
@@ -355,7 +575,7 @@ main {
 }
 
 .segment small { font-size: 0.65rem; font-weight: 400; opacity: 0.8; }
-.segment[aria-pressed="true"] { border-color: var(--accent); color: var(--text); background: #14283d; }
+.segment[aria-pressed="true"] { border-color: var(--accent); color: var(--text); background: var(--accent-fond); }
 
 .perso { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.5rem; margin-top: 0.6rem; }
 /* `display: grid` l'emporterait sur le display:none implicite de [hidden] */
@@ -389,19 +609,38 @@ main {
 
 .resume-stats { margin: 0 0 0.6rem; font-size: 0.85rem; color: var(--muted); }
 
+/* Pastille d'aperçu des thèmes. Ces couleurs sont volontairement figées : ce
+   sont les seules de la feuille à ne pas suivre le thème courant, puisqu'elles
+   servent justement à montrer les autres. */
+.pastille {
+    width: 1.15rem;
+    height: 1.15rem;
+    border-radius: 50%;
+    border: 1px solid var(--border-vif);
+    flex: 0 0 auto;
+}
+
+.pastille[data-apercu="clair"] { background: linear-gradient(135deg, #f2f5f9 50%, #c3ccdb 50%); }
+.pastille[data-apercu="papier"] { background: linear-gradient(135deg, #f4ecdd 50%, #d6c3a1 50%); }
+.pastille[data-apercu="sombre"] { background: linear-gradient(135deg, #0d1117 50%, #303c50 50%); }
+.pastille[data-apercu="nuit"] { background: linear-gradient(135deg, #16120e 50%, #3b3128 50%); }
+.pastille[data-apercu="contraste"] { background: linear-gradient(135deg, #000000 50%, #4f4f4f 50%); }
+
+#segments-theme .segment { flex-direction: row; gap: 0.4rem; }
+
 .explication { margin: 0.5rem 0 0; font-size: 0.8rem; color: var(--muted); line-height: 1.4; }
 
 .fin-autopsie {
     margin: 0 0 0.7rem;
     padding: 0.6rem 0.8rem;
     border-left: 3px solid var(--border);
-    background: #121826;
+    background: var(--panel-creux);
     border-radius: 0 8px 8px 0;
     font-size: 0.9rem;
 }
 
 .fin-autopsie.evitable { border-left-color: var(--rouge); }
-.fin-autopsie.inevitable { border-left-color: #ffbd00; }
+.fin-autopsie.inevitable { border-left-color: var(--or); }
 
 .records { list-style: none; margin: 0; padding: 0; font-size: 0.9rem; }
 .records li { display: flex; justify-content: space-between; padding: 0.3rem 0; border-bottom: 1px solid var(--border); }
@@ -409,7 +648,7 @@ main {
 .records .vide { color: var(--muted); justify-content: center; border: none; }
 
 .rules { list-style: none; margin: 0 0 0.8rem; padding: 0; display: grid; gap: 0.5rem; }
-.rules li { display: flex; align-items: center; gap: 0.7rem; color: #d6dce7; }
+.rules li { display: flex; align-items: center; gap: 0.7rem; color: var(--texte-doux); }
 
 .sample {
     width: 2rem;
@@ -417,14 +656,14 @@ main {
     display: grid;
     place-items: center;
     border-radius: 6px;
-    background: #151b26;
-    color: #ff6b6b;
+    background: var(--case-ouverte);
+    color: var(--chiffre-3);
     font-weight: 700;
     font-family: ui-monospace, Menlo, monospace;
     flex: 0 0 auto;
 }
 
-.sample-drapeau { background: #2b3445; color: var(--rouge); }
+.sample-drapeau { background: var(--case-fermee); color: var(--rouge); }
 
 /* Le verdict arrive en bas de l'écran, pas au milieu : c'est le moment où l'on
    veut justement regarder la grille et comprendre ce qui a explosé. */
@@ -438,7 +677,7 @@ main {
     animation: monter 220ms ease-out;
 }
 
-#dialogue-fin::backdrop { background: rgba(5, 8, 14, 0.35); }
+#dialogue-fin::backdrop { background: color-mix(in srgb, var(--voile-fort) 50%, transparent); }
 
 @keyframes monter {
     from { transform: translateY(40%); opacity: 0; }
@@ -447,6 +686,13 @@ main {
 
 @media (prefers-reduced-motion: reduce) {
     #dialogue-fin { animation: none; }
+}
+
+/* Téléphone étroit : le titre cède la place aux boutons, pas l'inverse. */
+@media (max-width: 380px) {
+    .topbar { padding-left: 0.6rem; padding-right: 0.6rem; gap: 0.35rem; }
+    .topbar h1 { font-size: 0.95rem; letter-spacing: 0.14em; text-indent: 0.14em; }
+    .topbar-actions { gap: 0.3rem; }
 }
 
 /* Écran large : la grille respire, la barre du bas devient secondaire. */

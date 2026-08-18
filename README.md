@@ -14,7 +14,8 @@ toutes les variantes, hexagones et chiffres menteurs compris.
   bas inverse les deux pour enchaîner les drapeaux. Deux doigts pour déplacer
   la grille et zoomer.
 - **À la souris** — clic gauche pour creuser, clic droit pour marquer, molette
-  pour zoomer. `R` relance une partie, `H` demande un indice.
+  pour zoomer. `R` relance une partie, `H` demande un indice, `T` change de
+  thème.
 - **Le geste qui compte** — appuyer sur un chiffre déjà entouré de ses drapeaux
   ouvre toutes ses voisines d'un coup. Sans lui, l'expert est interminable.
 
@@ -49,6 +50,18 @@ hexagone aux chiffres menteurs en trois vies est une partie parfaitement valable
 | **Zen** | on ne perd jamais |
 | **Blitz** | compte à rebours, chaque case ouverte rend du temps |
 
+## Les thèmes
+
+Cinq palettes, dans la barre du haut ou dans les réglages. **Clair** par défaut,
+gris bleutés et neutres. **Papier**, crème et encre brune, pour qui préfère les
+tons chauds. **Sombre**, bleu nuit, pour jouer le soir. **Nuit ambrée**, sombre
+mais sans lumière bleue. **Contraste**, noir franc et couleurs saturées, lisible
+en plein soleil.
+
+Le bouton fait tourner la liste, les réglages donnent l'accès direct. Le choix
+est mémorisé et posé avant le premier rendu, pour éviter le clignotement à
+l'ouverture.
+
 **La grille du jour** tire une combinaison au sort à partir de la date : la même
 pour tout le monde, sans serveur, avec un résultat à partager.
 
@@ -74,6 +87,7 @@ js/generator.js  placement des mines, et rejet des grilles injustes
 js/engine.js     les règles : révéler, marquer, accorder, gagner, perdre
 js/defi.js       la grille du jour et son partage
 js/hasard.js     un générateur aléatoire qu'on peut rejouer à l'identique
+js/themes.js     la liste des thèmes et leur ordre
 js/render.js     dessin sur canvas, zoom et déplacement
 js/input.js      souris, doigt et stylet
 js/storage.js    préférences et records
@@ -107,6 +121,13 @@ Le **rythme** se résume à un nombre de vies et à un éventuel sablier. Le mod
 zen n'est rien d'autre que `vies: Infinity` : aucune condition supplémentaire
 n'a été ajoutée nulle part.
 
+Les **thèmes**, enfin, ne vivent que dans la feuille de style : `themes.js` ne
+tient que la liste et son ordre, et le canvas relit ses couleurs dans les mêmes
+variables CSS que le reste de la page plutôt que d'en garder une seconde copie.
+Un test compare chaque palette à celle de référence — une variable oubliée ne
+provoque aucune erreur, elle laisse juste une couleur claire au milieu d'un
+thème sombre, ce qui se remarque tard et se cherche longtemps.
+
 ### Le solveur
 
 Il travaille par étages, du moins cher au plus cher, et s'arrête dès que l'un
@@ -133,12 +154,15 @@ plateau et de chiffres se composent toutes en quelques millisecondes.
 ## Développement
 
 ```bash
-npm test        # 155 vérifications sur le noyau, sans navigateur
+npm test        # 180 vérifications, dont le noyau complet sans navigateur
 npm run serve   # http://localhost:8765
 ```
 
 Le noyau (plateau, variantes, solveur, générateur, règles, défi, classement) ne
-touche pas au DOM : il se teste directement en Node.
+touche pas au DOM : il se teste directement en Node. S'y ajoutent des
+vérifications structurelles — palettes complètes, modules tous déclarés au
+service worker, identifiants cherchés par l'interface bien présents dans la
+page — qui attrapent les fautes qui ne lèvent aucune erreur.
 
 ## Ce qui n'est pas là
 

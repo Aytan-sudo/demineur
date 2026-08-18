@@ -5,7 +5,7 @@
     "description": "Demineur statique, grilles garanties sans hasard, jouable hors ligne.",
     "type": "module",
     "scripts": {
-        "test": "node tests/test-board.mjs && node tests/test-variantes.mjs && node tests/test-solver.mjs && node tests/test-generator.mjs && node tests/test-engine.mjs && node tests/test-defi.mjs && node tests/test-storage.mjs",
+        "test": "node tests/test-board.mjs && node tests/test-variantes.mjs && node tests/test-solver.mjs && node tests/test-generator.mjs && node tests/test-engine.mjs && node tests/test-defi.mjs && node tests/test-storage.mjs && node tests/test-themes.mjs && node tests/test-page.mjs",
         "serve": "python3 -m http.server 8765"
     }
 }

@@ -19,6 +19,7 @@ export const PREFERENCES_PAR_DEFAUT = {
     enroule: false,
     chiffres: 'exacts',
     rythme: 'classique',
+    theme: 'clair',
     doutes: false,
     vibration: true,
     modeDrapeau: false

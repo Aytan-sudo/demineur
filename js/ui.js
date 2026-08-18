@@ -5,6 +5,7 @@ import { DIFFICULTES, minesMaximales } from './engine.js';
 import { MODES_CHIFFRES, RYTHMES } from './variantes.js';
 import { chargerRecords, chargerStats } from './storage.js';
 import { resumeDe } from './defi.js';
+import { THEMES, themeConnu, THEME_PAR_DEFAUT } from './themes.js';
 
 const $ = identifiant => document.getElementById(identifiant);
 
@@ -22,6 +23,7 @@ export const elements = {
     indice: $('bouton-indice'),
     astuce: $('astuce'),
     boutonDefi: $('bouton-defi'),
+    boutonTheme: $('bouton-theme'),
     dialogueFin: $('dialogue-fin'),
     finTitre: $('fin-titre'),
     finDetail: $('fin-detail'),
@@ -31,6 +33,8 @@ export const elements = {
     dialogueReglages: $('dialogue-reglages'),
     dialogueAide: $('dialogue-aide')
 };
+
+construireSegmentsDeTheme();
 
 export function formaterTemps(ms) {
     const total = Math.max(0, Math.floor(ms / 1000));
@@ -59,6 +63,26 @@ export function majVies(restantes, total) {
 }
 
 export const majVisage = tete => { elements.visage.textContent = tete; };
+
+// Le selecteur des reglages est construit depuis la liste : ajouter un theme
+// ne demande alors qu'une entree dans themes.js et sa palette dans le CSS.
+function construireSegmentsDeTheme() {
+    $('segments-theme').innerHTML = THEMES.map(({ id, libelle }) =>
+        `<button type="button" class="segment" data-theme-choisi="${id}">`
+        + `<span class="pastille" data-apercu="${id}" aria-hidden="true"></span>${libelle}</button>`
+    ).join('');
+}
+
+// Applique le theme et accorde la barre du navigateur avec : sur telephone,
+// une barre d'adresse restee sombre au-dessus d'une page claire se voit.
+export function appliquerTheme(theme) {
+    const retenu = themeConnu(theme) ? theme : THEME_PAR_DEFAUT;
+    document.documentElement.dataset.theme = retenu;
+
+    const fond = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+    $('couleur-barre').setAttribute('content', fond);
+    return retenu;
+}
 
 let minuterieAnnonce = null;
 
@@ -136,6 +160,7 @@ export function refletDesReglages(preferences) {
     refletDesSegments('segments-plateau', 'topologie', preferences.topologie);
     refletDesSegments('segments-chiffres', 'chiffres', preferences.chiffres);
     refletDesSegments('segments-rythme', 'rythme', preferences.rythme);
+    refletDesSegments('segments-theme', 'themeChoisi', preferences.theme);
 
     const perso = preferences.difficulte === 'perso';
     $('champs-perso').hidden = !perso;
@@ -153,6 +178,8 @@ export function refletDesReglages(preferences) {
 
     $('explication-chiffres').textContent = MODES_CHIFFRES[preferences.chiffres].resume;
     $('explication-rythme').textContent = RYTHMES[preferences.rythme].resume;
+    $('explication-theme').textContent =
+        THEMES.find(theme => theme.id === preferences.theme)?.resume ?? '';
 
     $('option-enroule').checked = preferences.enroule;
     $('option-sans-hasard').checked = preferences.sansHasard;

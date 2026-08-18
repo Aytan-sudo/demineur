@@ -8,6 +8,7 @@ import * as ui from './ui.js';
 import { normaliser } from './variantes.js';
 import { defiDuJour, texteDePartage } from './defi.js';
 import { generateurAleatoire } from './hasard.js';
+import { themeSuivant, libelleDuTheme } from './themes.js';
 import {
     chargerPreferences, enregistrerPreferences,
     cleDeClassement, enregistrerRecord, enregistrerPartie, effacerStats
@@ -201,6 +202,20 @@ ui.elements.indice.addEventListener('click', () => {
     demanderRendu();
 });
 
+function choisirTheme(theme, { annoncer = false } = {}) {
+    preferences.theme = ui.appliquerTheme(theme);
+    enregistrerPreferences(preferences);
+    // La grille garde sa propre copie des couleurs, le temps d'une image.
+    rendu.relirePalette();
+    demanderRendu();
+    if (annoncer) ui.annoncer(`Thème ${libelleDuTheme(preferences.theme).toLowerCase()}`, 1600);
+}
+
+// Le bouton fait tourner la liste ; les reglages donnent l'acces direct.
+ui.elements.boutonTheme.addEventListener('click', () => {
+    choisirTheme(themeSuivant(preferences.theme), { annoncer: true });
+});
+
 ui.elements.boutonDefi.addEventListener('click', () => {
     defi = defi ? null : defiDuJour();
     nouvellePartie();
@@ -284,7 +299,10 @@ const segments = {
     },
     'segments-plateau': bouton => { preferences.topologie = bouton.dataset.topologie; },
     'segments-chiffres': bouton => { preferences.chiffres = bouton.dataset.chiffres; },
-    'segments-rythme': bouton => { preferences.rythme = bouton.dataset.rythme; }
+    'segments-rythme': bouton => { preferences.rythme = bouton.dataset.rythme; },
+    // Le theme ne fait pas partie de la recette d'une partie : on l'applique
+    // aussitot, sans attendre la fermeture du panneau ni relancer la grille.
+    'segments-theme': bouton => choisirTheme(bouton.dataset.themeChoisi)
 };
 
 for (const [conteneur, appliquerChoix] of Object.entries(segments)) {
@@ -352,9 +370,11 @@ window.addEventListener('keydown', evenement => {
     if (document.querySelector('dialog[open]')) return;
     if (evenement.key === 'r' || evenement.key === 'R') nouvellePartie();
     if (evenement.key === 'h' || evenement.key === 'H') ui.elements.indice.click();
+    if (evenement.key === 't' || evenement.key === 'T') ui.elements.boutonTheme.click();
 });
 
 rendu.redimensionner();
+choisirTheme(preferences.theme);
 ui.majBascule(preferences.modeDrapeau);
 Object.assign(preferences, normaliser(preferences));
 nouvellePartie();

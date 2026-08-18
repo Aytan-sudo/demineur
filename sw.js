@@ -6,7 +6,7 @@
 // push` resterait invisible pour tous ceux qui ont deja ouvert le jeu, jusqu'a
 // ce qu'on pense a changer VERSION a la main.
 
-const VERSION = 'demineur-v2';
+const VERSION = 'demineur-v3';
 const COQUILLE = [
     './',
     'index.html',
@@ -17,6 +17,7 @@ const COQUILLE = [
     'js/solver.js',
     'js/generator.js',
     'js/variantes.js',
+    'js/themes.js',
     'js/defi.js',
     'js/hasard.js',
     'js/render.js',

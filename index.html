@@ -5,11 +5,23 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Démineur</title>
 <meta name="description" content="Le démineur, avec des grilles garanties sans coup de dés. Hexagones, chiffres menteurs, défi du jour. Jouable au doigt comme à la souris, hors ligne.">
-<meta name="theme-color" content="#0d1117">
+<meta name="theme-color" content="#f2f5f9" id="couleur-barre">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="assets/icon-180.png">
 <link rel="stylesheet" href="css/style.css">
+<script>
+    // Pose le theme avant le premier rendu. Charge par le module app.js, il
+    // arriverait apres coup et l'ecran clignoterait a chaque ouverture.
+    try {
+        const enregistrees = JSON.parse(localStorage.getItem('demineur.preferences') || '{}');
+        // Liste blanche : la valeur vient du stockage, elle atterrit dans un
+        // attribut, et un theme inconnu retomberait de toute facon sur le clair.
+        if (/^[a-z]{4,12}$/.test(enregistrees.theme || '')) {
+            document.documentElement.dataset.theme = enregistrees.theme;
+        }
+    } catch { /* stockage indisponible : theme clair */ }
+</script>
 </head>
 <body>
 
@@ -17,6 +29,12 @@
     <button type="button" class="icon-button" id="bouton-aide" aria-label="Règles du jeu">?</button>
     <h1>DÉMINEUR</h1>
     <div class="topbar-actions">
+        <button type="button" class="icon-button" id="bouton-theme" aria-label="Changer de thème">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <circle cx="12" cy="12" r="8.6"/>
+                <path d="M12 3.4a8.6 8.6 0 0 0 0 17.2Z" class="moitie"/>
+            </svg>
+        </button>
         <button type="button" class="icon-button" id="bouton-defi" aria-label="Grille du jour">
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                 <rect x="3" y="5" width="18" height="16" rx="3"/>
@@ -165,6 +183,10 @@
         <span><strong>Vibration</strong><small>Retour tactile sur l'appui long et les explosions.</small></span>
     </label>
 
+    <h3>Thème</h3>
+    <div class="segments" id="segments-theme" role="group" aria-label="Thème de couleurs"></div>
+    <p class="explication" id="explication-theme"></p>
+
     <h3>Records</h3>
     <p class="resume-stats" id="resume-stats"></p>
     <ul class="records" id="liste-records"></ul>
@@ -197,6 +219,10 @@
 
     <h3>Les variantes</h3>
     <p>Le plateau, les chiffres et le rythme se règlent séparément et se combinent librement&nbsp;: un hexagone aux chiffres menteurs en trois vies est une partie parfaitement valable. La grille du jour, elle, en tire une combinaison au sort&nbsp;— la même pour tout le monde.</p>
+
+    <h3>Le thème</h3>
+    <p>Le bouton rond en haut fait tourner cinq palettes, du papier crème au noir
+    très contrasté. Les réglages donnent l'accès direct à chacune.</p>
 
     <div class="dialog-actions">
         <button type="button" class="button button-primary" data-fermer>Jouer</button>

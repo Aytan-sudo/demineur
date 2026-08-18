@@ -13,16 +13,29 @@ import { REVELEE, DRAPEAU, DOUTE, PERDU } from './engine.js';
 const CASE = 34;              // pas de la grille dans le repere du plateau
 const MARGE = 10;
 
-const COULEURS_CHIFFRES = [
-    '', '#4aa3ff', '#3ddc84', '#ff6b6b', '#b98cff',
-    '#ffb454', '#35d6c8', '#ff8bd1', '#c3ccd9'
-];
+// Les couleurs viennent de la feuille de style : c'est elle qui porte les deux
+// themes, et le canvas n'a aucune raison d'en tenir une seconde liste qui
+// finirait par diverger. On relit tout a chaque changement de theme.
+function lirePalette() {
+    const style = getComputedStyle(document.documentElement);
+    const lire = nom => style.getPropertyValue(nom).trim();
 
-const FOND = '#090d13';
-const COUVERCLE = '#303c50';
-const COUVERCLE_ENFONCE = '#242e3f';
-const CREUX = '#141a26';
-const CREUX_EXPLOSE = '#5a1420';
+    return {
+        fond: lire('--grille-fond'),
+        fermee: lire('--case-fermee'),
+        enfoncee: lire('--case-enfoncee'),
+        ouverte: lire('--case-ouverte'),
+        explosee: lire('--case-explosee'),
+        mine: lire('--mine'),
+        mineExplosee: lire('--mine-explosee'),
+        drapeauMat: lire('--drapeau-mat'),
+        rouge: lire('--rouge'),
+        doute: lire('--doute'),
+        indice: lire('--indice'),
+        eclat: lire('--eclat-explosion'),
+        chiffres: ['', ...Array.from({ length: 8 }, (_, rang) => lire(`--chiffre-${rang + 1}`))]
+    };
+}
 
 const DUREE_REVELATION = 220;
 const DECALAGE_VAGUE = 16;    // ms de retard par anneau : l'ouverture se deroule
@@ -99,6 +112,7 @@ export function creerRendu(canvas) {
     const soulignees = new Set();   // cases montrees par un indice
 
     let partie = null;
+    let palette = lirePalette();
     let geometrie = GEOMETRIES.carre;
     let largeur = 0;
     let hauteur = 0;
@@ -182,11 +196,15 @@ export function creerRendu(canvas) {
         ctx.fill();
     };
 
+    // `pale` marque un drapeau pose la ou il n'y avait pas de mine : on le
+    // decolore plutot que de lui donner sa propre paire de couleurs a maintenir
+    // dans les deux themes.
     function dessinerDrapeau(cx, cy, pale) {
         const u = CASE / 34;
         const x = cx - 17 * u;
         const y = cy - 17 * u;
-        ctx.strokeStyle = pale ? '#6b7484' : '#d7dde8';
+        ctx.globalAlpha = pale ? 0.4 : 1;
+        ctx.strokeStyle = palette.drapeauMat;
         ctx.lineWidth = 2 * u;
         ctx.lineCap = 'round';
         ctx.beginPath();
@@ -196,13 +214,14 @@ export function creerRendu(canvas) {
         ctx.lineTo(x + 21 * u, y + 26 * u);
         ctx.stroke();
 
-        ctx.fillStyle = pale ? '#7c5560' : '#e7002a';
+        ctx.fillStyle = palette.rouge;
         ctx.beginPath();
         ctx.moveTo(x + 13 * u, y + 9 * u);
         ctx.lineTo(x + 24 * u, y + 13.5 * u);
         ctx.lineTo(x + 13 * u, y + 18 * u);
         ctx.closePath();
         ctx.fill();
+        ctx.globalAlpha = 1;
     }
 
     function dessinerMine(cx, cy, echelle, couleur) {
@@ -222,6 +241,8 @@ export function creerRendu(canvas) {
         ctx.arc(cx, cy, 6.5 * u, 0, Math.PI * 2);
         ctx.fill();
 
+        // Reflet speculaire : blanc dans les deux themes, la mine restant
+        // sombre partout.
         ctx.fillStyle = 'rgba(255,255,255,0.55)';
         ctx.beginPath();
         ctx.arc(cx - 2 * u, cy - 2.4 * u, 1.6 * u, 0, Math.PI * 2);
@@ -239,10 +260,10 @@ export function creerRendu(canvas) {
     function dessinerCouvercle(cx, cy, index, alpha = 1) {
         const enfoncee = enfoncees.has(index);
         ctx.globalAlpha = alpha;
-        tracer(cx, cy, enfoncee ? COUVERCLE_ENFONCE : COUVERCLE);
+        tracer(cx, cy, enfoncee ? palette.enfoncee : palette.fermee);
 
         if (soulignees.has(index)) {
-            ctx.strokeStyle = '#ffbd00';
+            ctx.strokeStyle = palette.indice;
             ctx.lineWidth = 2;
             ctx.beginPath();
             geometrie.contour(ctx, cx, cy, geometrie.marge + 1.5);
@@ -275,7 +296,7 @@ export function creerRendu(canvas) {
                 const errone = partie.statut === PERDU && !partie.mines[index];
                 dessinerDrapeau(cx, cy, errone);
                 if (errone) {
-                    ctx.strokeStyle = '#e7002a';
+                    ctx.strokeStyle = palette.rouge;
                     ctx.lineWidth = 2;
                     ctx.beginPath();
                     ctx.moveTo(cx - 9, cy - 9);
@@ -283,13 +304,13 @@ export function creerRendu(canvas) {
                     ctx.stroke();
                 }
             } else if (etat === DOUTE) {
-                dessinerTexte('?', cx, cy, '#8b95a5', CASE * 0.54);
+                dessinerTexte('?', cx, cy, palette.doute, CASE * 0.54);
             }
             return;
         }
 
         const explosee = partie.explosee[index] === 1;
-        tracer(cx, cy, explosee ? CREUX_EXPLOSE : CREUX);
+        tracer(cx, cy, explosee ? palette.explosee : palette.ouverte);
 
         if (avancement < 1) {
             ctx.globalAlpha = 1 - avancement;
@@ -304,12 +325,12 @@ export function creerRendu(canvas) {
                 const t = Math.min(1, (temps - eclat.debut) / DUREE_EXPLOSION);
                 if (t >= 1) animations.delete(index);
                 grossissement = 1 + Math.sin(t * Math.PI) * 0.35;
-                ctx.fillStyle = `rgba(231,0,42,${0.55 * (1 - t)})`;
+                ctx.fillStyle = `rgba(${palette.eclat}, ${0.55 * (1 - t)})`;
                 ctx.beginPath();
                 geometrie.contour(ctx, cx, cy, geometrie.marge);
                 ctx.fill();
             }
-            dessinerMine(cx, cy, grossissement, explosee ? '#ffd7dd' : '#8b95a5');
+            dessinerMine(cx, cy, grossissement, explosee ? palette.mineExplosee : palette.mine);
             return;
         }
 
@@ -321,7 +342,7 @@ export function creerRendu(canvas) {
         ctx.globalAlpha = avancement;
         const nominal = Math.min(8, Math.max(1, Number.parseInt(libelle, 10) || 1));
         const taille = libelle.length > 1 ? CASE * 0.36 : CASE * 0.58;
-        dessinerTexte(libelle, cx, cy, COULEURS_CHIFFRES[nominal], taille);
+        dessinerTexte(libelle, cx, cy, palette.chiffres[nominal], taille);
         ctx.globalAlpha = 1;
     }
 
@@ -330,7 +351,7 @@ export function creerRendu(canvas) {
     function dessiner(temps = performance.now()) {
         if (!partie) return false;
 
-        ctx.fillStyle = FOND;
+        ctx.fillStyle = palette.fond;
         ctx.fillRect(0, 0, largeur, hauteur);
 
         ctx.save();
@@ -363,6 +384,7 @@ export function creerRendu(canvas) {
         },
 
         redimensionner,
+        relirePalette() { palette = lirePalette(); },
         ajusterVue,
         deborde: () => {
             const { largeur: largeurMonde, hauteur: hauteurMonde } = monde();
