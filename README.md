@@ -52,11 +52,15 @@ hexagone aux chiffres menteurs en trois vies est une partie parfaitement valable
 
 ## Les thèmes
 
-Cinq palettes, dans la barre du haut ou dans les réglages. **Clair** par défaut,
-gris bleutés et neutres. **Papier**, crème et encre brune, pour qui préfère les
-tons chauds. **Sombre**, bleu nuit, pour jouer le soir. **Nuit ambrée**, sombre
-mais sans lumière bleue. **Contraste**, noir franc et couleurs saturées, lisible
-en plein soleil.
+Six palettes, dans la barre du haut ou dans les réglages — trois claires, trois
+sombres. **Clair** par défaut, gris bleutés et neutres. **Papier**, crème et
+encre brune. **Rose**, poudré et prune. **Sombre**, bleu nuit, pour jouer le
+soir. **Nuit ambrée**, sombre mais sans lumière bleue. **Contraste**, noir franc
+et couleurs saturées, lisible en plein soleil.
+
+Dans chacune, le drapeau garde un rouge franc plutôt qu'un rouge assorti au
+thème : sur un fond rosé ou crème, c'est le repère qu'on cherche du regard en
+fin de partie.
 
 Le bouton fait tourner la liste, les réglages donnent l'accès direct. Le choix
 est mémorisé et posé avant le premier rendu, pour éviter le clignotement à
@@ -154,7 +158,7 @@ plateau et de chiffres se composent toutes en quelques millisecondes.
 ## Développement
 
 ```bash
-npm test        # 180 vérifications, dont le noyau complet sans navigateur
+npm test        # 181 vérifications, dont le noyau complet sans navigateur
 npm run serve   # http://localhost:8765
 ```
 

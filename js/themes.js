@@ -17,6 +17,11 @@ export const THEMES = [
         resume: 'Crème et encre brune, comme une grille imprimée.'
     },
     {
+        id: 'rose',
+        libelle: 'Rose',
+        resume: 'Rose poudré et prune, tout en douceur.'
+    },
+    {
         id: 'sombre',
         libelle: 'Sombre',
         resume: 'Bleu nuit, pour jouer le soir sans s\'éblouir.'

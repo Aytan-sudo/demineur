@@ -138,6 +138,53 @@
     --chiffre-8: #4a3a28;
 }
 
+/* -------------------------------------------------------------------- rose */
+/* Rose poudré et prune. Le drapeau garde un rouge franc : sur un fond rosé, un
+   rouge assorti au thème se serait fondu dedans, et c'est justement le repère
+   qu'on cherche du regard en fin de partie. */
+:root[data-theme="rose"] {
+    --bg: #fbf0f4;
+    --panel: #fffafc;
+    --panel-clair: #f6e2ea;
+    --panel-creux: #f8e9ef;
+    --text: #3d2530;
+    --texte-doux: #5a3945;
+    --muted: #8a6674;
+    --border: #ecd2dc;
+    --border-vif: #d9b0be;
+    --accent: #b03a63;
+    --accent-fond: #f8dce7;
+    --accent-texte: #fff5f8;
+    --rouge: #d32f2f;
+    --or: #a8720d;
+    --voile: rgba(255, 250, 252, 0.94);
+    --voile-fort: rgba(61, 37, 48, 0.42);
+    --danger-fond: #fbdcdc;
+    --danger-texte: #8c1130;
+    --danger-bord: #eebfc4;
+
+    --grille-fond: #f4e3ea;
+    --case-fermee: #e7c3d1;
+    --case-enfoncee: #d9adbd;
+    --case-ouverte: #fdf7fa;
+    --case-explosee: #f7bcbc;
+    --mine: #5a3945;
+    --mine-explosee: #8c1130;
+    --drapeau-mat: #5a3945;
+    --doute: #8a6674;
+    --indice: #a8720d;
+    --eclat-explosion: 211, 47, 47;
+
+    --chiffre-1: #1565c0;
+    --chiffre-2: #2e7d32;
+    --chiffre-3: #c62828;
+    --chiffre-4: #6a1b9a;
+    --chiffre-5: #b35309;
+    --chiffre-6: #00838f;
+    --chiffre-7: #ad1457;
+    --chiffre-8: #4a3540;
+}
+
 /* -------------------------------------------------------------------- nuit */
 /* Sombre sans bleu : le pendant nocturne de « papier », pour les parties tard
    le soir où un écran bleuté tient éveillé. */
@@ -622,6 +669,7 @@ main {
 
 .pastille[data-apercu="clair"] { background: linear-gradient(135deg, #f2f5f9 50%, #c3ccdb 50%); }
 .pastille[data-apercu="papier"] { background: linear-gradient(135deg, #f4ecdd 50%, #d6c3a1 50%); }
+.pastille[data-apercu="rose"] { background: linear-gradient(135deg, #fbf0f4 50%, #e7c3d1 50%); }
 .pastille[data-apercu="sombre"] { background: linear-gradient(135deg, #0d1117 50%, #303c50 50%); }
 .pastille[data-apercu="nuit"] { background: linear-gradient(135deg, #16120e 50%, #3b3128 50%); }
 .pastille[data-apercu="contraste"] { background: linear-gradient(135deg, #000000 50%, #4f4f4f 50%); }
