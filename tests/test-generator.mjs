@@ -1,6 +1,7 @@
 import { creerPlateau, calculerChiffres } from '../js/board.js';
 import { genererGrille, zoneProtegee } from '../js/generator.js';
 import { resoudre } from '../js/solver.js';
+import { affichageCoherent } from '../js/variantes.js';
 import { counter, alea } from './harness.mjs';
 
 const { check, report } = counter();
@@ -54,6 +55,7 @@ for (const [colonnes, lignes, nbMines, nom] of [[9, 9, 10, 'facile'], [16, 16, 4
         const controle = resoudre({
             plateau: grand,
             chiffres: resultat.chiffres,
+            sommes: resultat.sommes,
             mines: resultat.mines,
             depart
         });
@@ -93,5 +95,44 @@ check('la zone du premier clic reste sure meme en abandonnant',
     !abandon.mines[55] && [...dense.voisins[55]].every(voisin => !abandon.mines[voisin]));
 check('les chiffres restent coherents avec les mines rendues',
     calculerChiffres(dense, abandon.mines).join() === abandon.chiffres.join());
+
+// ------------------------------------------------- variantes combinees
+
+// La promesse « sans hasard » ne doit pas dependre de la forme du plateau ni de
+// la sincerite des chiffres : c'est la combinaison qui doit tenir, pas
+// seulement le demineur ordinaire.
+let toutesCombinaisons = true;
+let affichagesJustes = true;
+let pireDureeCombinee = 0;
+
+for (const topologie of ['carre', 'hexagone', 'cavalier']) {
+    for (const enroule of [false, true]) {
+        for (const modeChiffres of ['exacts', 'menteurs', 'flous']) {
+            const combine = creerPlateau({ colonnes: 16, lignes: 16, topologie, enroule });
+            const depart = Math.floor(hasard() * combine.taille);
+            const resultat = genererGrille({
+                plateau: combine, nbMines: 40, depart, modeChiffres, aleatoire: hasard, budgetMs: 8000
+            });
+
+            if (!resultat.garanti) toutesCombinaisons = false;
+            if (!affichageCoherent({ chiffres: resultat.chiffres, sommes: resultat.sommes })) {
+                affichagesJustes = false;
+            }
+            pireDureeCombinee = Math.max(pireDureeCombinee, resultat.ms);
+
+            const controle = resoudre({
+                plateau: combine, chiffres: resultat.chiffres, sommes: resultat.sommes,
+                mines: resultat.mines, depart
+            });
+            if (!controle.resolu) toutesCombinaisons = false;
+        }
+    }
+}
+
+check('les dix-huit combinaisons plateau x chiffres tiennent la promesse sans hasard',
+    toutesCombinaisons);
+check('aucun affichage ne trahit la verite du plateau', affichagesJustes);
+check(`la pire combinaison se compose en moins de deux secondes (${Math.round(pireDureeCombinee)} ms)`,
+    pireDureeCombinee < 2000);
 
 report();

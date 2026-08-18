@@ -5,6 +5,9 @@ import * as jeu from './engine.js';
 import { creerRendu } from './render.js';
 import { brancherEntrees } from './input.js';
 import * as ui from './ui.js';
+import { normaliser } from './variantes.js';
+import { defiDuJour, texteDePartage } from './defi.js';
+import { generateurAleatoire } from './hasard.js';
 import {
     chargerPreferences, enregistrerPreferences,
     cleDeClassement, enregistrerRecord, enregistrerPartie, effacerStats
@@ -14,15 +17,16 @@ const preferences = chargerPreferences();
 const rendu = creerRendu(ui.elements.canvas);
 
 let partie = null;
+let defi = null;                    // grille du jour en cours, sinon null
 let rafraichissementDemande = false;
 let minuterieChrono = null;
+let glissementExplique = false;
 
 // ------------------------------------------------------------------- rendu
 
 function dessiner() {
     rafraichissementDemande = false;
-    const encore = rendu.dessiner(performance.now());
-    if (encore) demanderRendu();
+    if (rendu.dessiner(performance.now())) demanderRendu();
 }
 
 function demanderRendu() {
@@ -32,38 +36,75 @@ function demanderRendu() {
 }
 
 function majCompteurs() {
-    ui.majCompteurs({ mines: jeu.minesRestantes(partie), temps: jeu.tempsEcoule(partie) });
+    ui.majCompteurs({
+        mines: jeu.minesRestantes(partie),
+        temps: jeu.tempsEcoule(partie),
+        restant: jeu.tempsRestant(partie)
+    });
 }
 
-// L'intervalle tourne des la mise en place, avant meme le premier clic : la
-// partie ne passe a « en cours » qu'au moment ou la grille est tiree, et guetter
-// cet instant depuis ici serait une source d'oubli.
+// Le sablier du blitz est la seule fin de partie que personne ne declenche :
+// c'est le chrono qui doit la constater.
+function battement() {
+    if (jeu.verifierTemps(partie)) {
+        majCompteurs();
+        terminer();
+        return;
+    }
+    majCompteurs();
+}
+
 function reglerChrono() {
     clearInterval(minuterieChrono);
     if (partie.statut === jeu.GAGNE || partie.statut === jeu.PERDU) return;
-    minuterieChrono = setInterval(majCompteurs, 200);
+    minuterieChrono = setInterval(battement, 200);
 }
 
 // ------------------------------------------------------------------ partie
 
+const configurationDeJeu = () => normaliser({
+    difficulte: preferences.difficulte,
+    colonnes: preferences.colonnes,
+    lignes: preferences.lignes,
+    mines: preferences.mines,
+    topologie: preferences.topologie,
+    enroule: preferences.enroule,
+    chiffres: preferences.chiffres,
+    rythme: preferences.rythme,
+    sansHasard: preferences.sansHasard
+});
+
 function nouvellePartie() {
-    const { colonnes, lignes, mines, sansHasard, vies } = preferences;
-    partie = jeu.nouvellePartie({ colonnes, lignes, mines, sansHasard, vies });
+    const config = defi ? defi.config : configurationDeJeu();
+
+    partie = jeu.nouvellePartie({
+        ...config,
+        // Le defi du jour doit tomber sur la meme grille pour tout le monde :
+        // c'est la date qui tient le des, pas Math.random.
+        aleatoire: defi ? generateurAleatoire(defi.graine) : Math.random
+    });
 
     rendu.attacher(partie);
     ui.majVisage('🙂');
-    ui.majVies(partie.viesRestantes, vies);
+    ui.majVies(partie.viesRestantes, partie.config.vies);
+    ui.majBandeau({ config, defi });
+    ui.elements.indice.disabled = false;
     majCompteurs();
     reglerChrono();
     demanderRendu();
+
+    // Une grille plus large que l'ecran se deplace au doigt, mais rien ne le
+    // dit : sans ce mot, on croit la grille tronquee.
+    if (!glissementExplique && rendu.deborde()) {
+        glissementExplique = true;
+        ui.annoncer('La grille dépasse : faites-la glisser pour vous déplacer', 3600);
+    }
 }
 
-function vibrer(motif) {
-    if (preferences.vibration) navigator.vibrate?.(motif);
-}
+const vibrer = motif => { if (preferences.vibration) navigator.vibrate?.(motif); };
 
-// Une seule porte de sortie pour les trois issues possibles d'un geste : ca
-// evite d'oublier le chrono ou les stats sur l'un des chemins.
+// Une seule porte de sortie pour les issues possibles d'un geste : ca evite
+// d'oublier le chrono ou les stats sur l'un des chemins.
 function appliquer(resultat) {
     if (resultat.refuse) return;
 
@@ -72,6 +113,7 @@ function appliquer(resultat) {
         rendu.animerExplosion(index);
         vibrer([30, 40, 60]);
     }
+    if (resultat.revelees?.length || resultat.explosions?.length) rendu.soulignees.clear();
 
     ui.majVies(partie.viesRestantes, partie.config.vies);
     majCompteurs();
@@ -79,34 +121,42 @@ function appliquer(resultat) {
 
     if (partie.statut === jeu.GAGNE || partie.statut === jeu.PERDU) terminer();
     else if (resultat.explosions?.length) {
-        ui.annoncer(`Mine ! ${partie.viesRestantes} cœur${partie.viesRestantes > 1 ? 's' : ''} restant${partie.viesRestantes > 1 ? 's' : ''}`);
+        const restantes = partie.viesRestantes;
+        ui.annoncer(Number.isFinite(restantes)
+            ? `Mine ! ${restantes} cœur${restantes > 1 ? 's' : ''} restant${restantes > 1 ? 's' : ''}`
+            : 'Mine neutralisée');
     }
 }
 
 function terminer() {
     clearInterval(minuterieChrono);
     majCompteurs();
+    ui.elements.indice.disabled = true;
 
     const gagne = partie.statut === jeu.GAGNE;
     ui.majVisage(gagne ? '😎' : '😵');
     enregistrerPartie(gagne);
 
-    const temps = jeu.tempsEcoule(partie);
+    const tempsEcoule = jeu.tempsEcoule(partie);
     let record;
-    if (gagne) {
-        const cle = cleDeClassement({ ...preferences, ...partie.config });
-        const bilan = enregistrerRecord(cle, temps);
+    // Un temps obtenu a coups d'indices n'a rien a faire dans un palmares, et
+    // la grille du jour a son propre affichage.
+    if (gagne && !defi && partie.indices === 0) {
+        const bilan = enregistrerRecord(cleDeClassement({ ...preferences, ...partie.config }), tempsEcoule);
         if (bilan.record) record = bilan.ancien;
     }
     vibrer(gagne ? [40, 60, 40] : 120);
 
     setTimeout(() => ui.ouvrirFin({
         gagne,
-        temps,
-        record: gagne ? record : undefined,
+        tempsEcoule,
+        record,
         garanti: partie.garanti,
         vies: partie.viesRestantes,
-        viesTotales: partie.config.vies
+        viesTotales: partie.config.vies,
+        autopsie: partie.autopsie,
+        expire: Boolean(partie.rebours) && jeu.tempsRestant(partie) <= 0,
+        defi
     }), gagne ? 500 : 900);
 }
 
@@ -134,6 +184,57 @@ ui.elements.bascule.addEventListener('click', () => {
     ui.majBascule(preferences.modeDrapeau);
 });
 
+ui.elements.indice.addEventListener('click', () => {
+    const conseil = jeu.indice(partie);
+    if (!conseil) {
+        ui.annoncer(partie.statut === jeu.ATTENTE
+            ? 'Ouvrez d\'abord une case'
+            : 'Rien de certain à cet instant');
+        return;
+    }
+    rendu.soulignees.clear();
+    rendu.soulignees.add(conseil.index);
+    ui.annoncer(conseil.genre === 'sure'
+        ? 'Cette case est sûre — 15 secondes de pénalité'
+        : 'Une mine ici — 15 secondes de pénalité');
+    majCompteurs();
+    demanderRendu();
+});
+
+ui.elements.boutonDefi.addEventListener('click', () => {
+    defi = defi ? null : defiDuJour();
+    nouvellePartie();
+    if (defi) ui.annoncer(`Grille du jour : ${defi.resume}`, 3200);
+});
+
+ui.elements.finPartager.addEventListener('click', async () => {
+    const texte = texteDePartage({
+        cle: defi.cle,
+        resume: defi.resume,
+        gagne: partie.statut === jeu.GAGNE,
+        temps: jeu.tempsEcoule(partie),
+        avancement: partie.revelees / (partie.plateau.taille - partie.config.mines),
+        indices: partie.indices,
+        lien: location.href.split('?')[0]
+    });
+
+    // Sur telephone, la feuille de partage native est ce qu'on attend ; la
+    // refermer sans partager est un choix, pas une panne, donc on se tait.
+    if (navigator.share) {
+        try { await navigator.share({ text: texte }); } catch { /* annule */ }
+        return;
+    }
+
+    // Ailleurs, le presse-papier fait le meme travail — mais s'il refuse, il
+    // faut le dire : sinon le bouton semble ne rien faire.
+    try {
+        await navigator.clipboard.writeText(texte);
+        ui.annoncer('Résultat copié');
+    } catch {
+        ui.annoncer('Copie refusée par le navigateur');
+    }
+});
+
 document.getElementById('bouton-aide').addEventListener('click', () => ui.elements.dialogueAide.showModal());
 document.getElementById('bouton-reglages').addEventListener('click', ouvrirReglages);
 document.getElementById('fin-reglages').addEventListener('click', () => {
@@ -153,35 +254,47 @@ for (const bouton of document.querySelectorAll('[data-fermer]')) {
 
 let configurationALOuverture = null;
 
-const configurationCourante = () => JSON.stringify([
-    preferences.colonnes, preferences.lignes, preferences.mines,
-    preferences.sansHasard, preferences.vies
-]);
+const empreinteDeConfiguration = () => JSON.stringify(configurationDeJeu());
 
 function ouvrirReglages() {
     ui.refletDesReglages(preferences);
-    configurationALOuverture = configurationCourante();
+    configurationALOuverture = empreinteDeConfiguration();
     ui.elements.dialogueReglages.showModal();
 }
 
-// Changer de difficulte relance forcement la grille ; on ne le fait qu'a la
+// Changer un reglage relance forcement la grille ; on ne le fait qu'a la
 // fermeture, pour ne pas jeter la partie en cours des le premier clic dans le
-// panneau.
+// panneau. Toucher aux reglages sort aussi du defi du jour : celui-ci impose sa
+// propre recette, la modifier n'aurait aucun sens.
 ui.elements.dialogueReglages.addEventListener('close', () => {
     enregistrerPreferences(preferences);
-    if (configurationCourante() !== configurationALOuverture) nouvellePartie();
+    if (empreinteDeConfiguration() === configurationALOuverture) return;
+    defi = null;
+    nouvellePartie();
 });
 
-for (const bouton of document.querySelectorAll('#segments-difficulte .segment')) {
-    bouton.addEventListener('click', () => {
+const segments = {
+    'segments-difficulte': (bouton) => {
         const choix = bouton.dataset.difficulte;
         preferences.difficulte = choix;
         if (choix !== 'perso') {
             const { colonnes, lignes, mines } = jeu.DIFFICULTES[choix];
             Object.assign(preferences, { colonnes, lignes, mines });
         }
-        ui.refletDesReglages(preferences);
-    });
+    },
+    'segments-plateau': bouton => { preferences.topologie = bouton.dataset.topologie; },
+    'segments-chiffres': bouton => { preferences.chiffres = bouton.dataset.chiffres; },
+    'segments-rythme': bouton => { preferences.rythme = bouton.dataset.rythme; }
+};
+
+for (const [conteneur, appliquerChoix] of Object.entries(segments)) {
+    for (const bouton of document.querySelectorAll(`#${conteneur} .segment`)) {
+        bouton.addEventListener('click', () => {
+            appliquerChoix(bouton);
+            Object.assign(preferences, normaliser(preferences));
+            ui.refletDesReglages(preferences);
+        });
+    }
 }
 
 const champs = {
@@ -201,16 +314,14 @@ for (const [identifiant, clef] of Object.entries(champs)) {
             ? preferences[clef]
             : Math.max(minimum, Math.min(maximum, valeur));
 
-        // Retailler la grille peut rendre le nombre de mines intenable.
-        preferences.mines = Math.min(preferences.mines,
-            jeu.minesMaximales(preferences.colonnes, preferences.lignes));
+        Object.assign(preferences, normaliser(preferences));
         ui.refletDesReglages(preferences);
     });
 }
 
 const interrupteurs = {
+    'option-enroule': valeur => { preferences.enroule = valeur; },
     'option-sans-hasard': valeur => { preferences.sansHasard = valeur; },
-    'option-vies': valeur => { preferences.vies = valeur ? 3 : 1; },
     'option-doutes': valeur => { preferences.doutes = valeur; },
     'option-vibration': valeur => { preferences.vibration = valeur; }
 };
@@ -218,6 +329,7 @@ const interrupteurs = {
 for (const [identifiant, appliquerOption] of Object.entries(interrupteurs)) {
     document.getElementById(identifiant).addEventListener('change', evenement => {
         appliquerOption(evenement.target.checked);
+        Object.assign(preferences, normaliser(preferences));
         ui.refletDesReglages(preferences);
     });
 }
@@ -237,13 +349,14 @@ const observateur = new ResizeObserver(() => {
 observateur.observe(ui.elements.canvas);
 
 window.addEventListener('keydown', evenement => {
-    if (evenement.key === 'r' || evenement.key === 'R') {
-        if (!document.querySelector('dialog[open]')) nouvellePartie();
-    }
+    if (document.querySelector('dialog[open]')) return;
+    if (evenement.key === 'r' || evenement.key === 'R') nouvellePartie();
+    if (evenement.key === 'h' || evenement.key === 'H') ui.elements.indice.click();
 });
 
 rendu.redimensionner();
 ui.majBascule(preferences.modeDrapeau);
+Object.assign(preferences, normaliser(preferences));
 nouvellePartie();
 
 if ('serviceWorker' in navigator) {

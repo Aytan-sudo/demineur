@@ -93,7 +93,7 @@ check('l\'accord attend que les drapeaux soient poses',
 // -------------------------------------------------------------------- vies
 
 horloge = 0;
-partie = partieDe({ colonnes: 8, lignes: 8, mines: 12, vies: 3, aleatoire: alea(21) });
+partie = partieDe({ colonnes: 8, lignes: 8, mines: 12, rythme: 'vies', aleatoire: alea(21) });
 jeu.reveler(partie, 27);
 
 const premiereMine = [...Array(64).keys()].find(index => partie.mines[index] && partie.etat[index] === jeu.CACHEE);
@@ -117,6 +117,63 @@ check('a la defaite, le compteur cesse de decompter les mines sautees',
 check('plus rien ne repond une fois la partie finie',
     jeu.reveler(partie, 0).refuse && jeu.basculerDrapeau(partie, 0).refuse);
 
+// ------------------------------------------------------------- zen et blitz
+
+horloge = 0;
+partie = partieDe({ colonnes: 8, lignes: 8, mines: 12, rythme: 'zen', aleatoire: alea(21) });
+jeu.reveler(partie, 27);
+for (const index of [...Array(64).keys()].filter(i => partie.mines[i] && partie.etat[i] === jeu.CACHEE)) {
+    jeu.reveler(partie, index);
+}
+check('en zen, toucher toutes les mines ne fait pas perdre',
+    partie.statut !== jeu.PERDU && partie.viesRestantes === Infinity);
+check('en zen, il n\'y a pas de sablier', jeu.tempsRestant(partie) === null);
+
+horloge = 0;
+partie = partieDe({ colonnes: 9, lignes: 9, mines: 10, rythme: 'blitz', aleatoire: alea(3) });
+const sablierInitial = jeu.tempsRestant(partie);
+check('le blitz part avec un sablier plein', sablierInitial > 0);
+
+jeu.reveler(partie, 40);
+check('ouvrir des cases recharge le sablier',
+    jeu.tempsRestant(partie) > sablierInitial, jeu.tempsRestant(partie));
+
+check('le sablier ne se vide pas tout seul avant l\'heure', jeu.verifierTemps(partie) === false);
+horloge = 10 * 60 * 1000;
+check('le sablier epuise met fin a la partie',
+    jeu.verifierTemps(partie) === true && partie.statut === jeu.PERDU);
+check('une partie deja finie ne se termine pas deux fois', jeu.verifierTemps(partie) === false);
+
+// --------------------------------------------------------------- indice
+
+horloge = 0;
+partie = partieDe({ colonnes: 16, lignes: 16, mines: 40, aleatoire: alea(12) });
+check('pas d\'indice avant d\'avoir ouvert la premiere case', jeu.indice(partie) === null);
+
+jeu.reveler(partie, 8 * 16 + 8);
+const conseil = jeu.indice(partie);
+check('l\'indice designe une case', conseil !== null, conseil);
+check('l\'indice ne se trompe pas',
+    conseil.genre === 'sure' ? !partie.mines[conseil.index] : Boolean(partie.mines[conseil.index]));
+check('l\'indice coute du temps', jeu.tempsEcoule(partie) === jeu.PENALITE_INDICE);
+check('les indices sont comptes', partie.indices === 1);
+
+// --------------------------------------------------------------- autopsie
+
+horloge = 0;
+partie = partieDe({ colonnes: 9, lignes: 9, mines: 10, aleatoire: alea(5) });
+jeu.reveler(partie, 40);
+const mineIdentifiable = [...Array(81).keys()].find(index =>
+    partie.mines[index] && partie.etat[index] === jeu.CACHEE
+    && [...partie.plateau.voisins[index]].some(voisin => partie.etat[voisin] === jeu.REVELEE));
+jeu.reveler(partie, mineIdentifiable);
+
+check('la defaite est expliquee', partie.autopsie !== null, partie.autopsie);
+check('une mine deductible est signalee comme evitable',
+    partie.autopsie.verdict === 'evitable', partie.autopsie);
+check('l\'autopsie ne se rejuge pas a la mine suivante',
+    jeu.reveler(partie, 0).refuse || partie.autopsie.verdict === 'evitable');
+
 // ----------------------------------------------------------------- victoire
 
 horloge = 0;
@@ -132,7 +189,7 @@ for (let tour = 0; tour < 200 && partie.statut === jeu.ENCOURS; tour++) {
         else vue[index] = INCONNU;
     }
     const { sures, mines } = deduire({
-        plateau: partie.plateau, chiffres: partie.chiffres, etat: vue, minesTotales: partie.config.mines
+        plateau: partie.plateau, sommes: partie.sommes, etat: vue, minesTotales: partie.config.mines
     });
     if (sures.length === 0 && mines.length === 0) break;
     for (const index of mines) jeu.basculerDrapeau(partie, index);

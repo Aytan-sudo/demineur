@@ -74,8 +74,35 @@ body {
     padding: 0;
 }
 
-.icon-button svg { width: 1.15rem; height: 1.15rem; fill: currentColor; }
+.topbar-actions { display: flex; gap: 0.4rem; }
+
+.icon-button svg {
+    width: 1.15rem;
+    height: 1.15rem;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.8;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.icon-button svg.plein { fill: currentColor; stroke: none; }
+.icon-button[aria-pressed="true"] { color: var(--accent); border-color: var(--accent); }
 .icon-button:hover { color: var(--text); border-color: #3b465c; }
+
+/* Recette de la partie en cours : n'apparaît que si elle sort de l'ordinaire. */
+.bandeau {
+    margin: 0;
+    padding: 0.35rem 0.9rem;
+    text-align: center;
+    font-size: 0.78rem;
+    color: var(--muted);
+    background: #121826;
+    border-bottom: 1px solid var(--border);
+}
+
+.bandeau:empty { display: none; }
+.bandeau strong { color: var(--accent); font-weight: 600; }
 
 /* ------------------------------------------------------------------- hud */
 
@@ -116,6 +143,14 @@ body {
 
 .vies { margin: 0; font-size: 0.85rem; letter-spacing: 0.12em; line-height: 1; }
 .vies .perdue { opacity: 0.25; }
+.vies .infini { color: var(--muted); font-size: 1rem; }
+
+/* Blitz : le sablier vire au rouge sur la fin, puis bat la seconde. */
+#compteur-temps.urgence { color: var(--rouge); }
+#compteur-temps.urgence .hud-icone { stroke: var(--rouge); }
+#compteur-temps.urgence span { animation: pouls 1s ease-in-out infinite; }
+
+@keyframes pouls { 50% { opacity: 0.45; } }
 
 .visage {
     width: 2.6rem;
@@ -180,12 +215,47 @@ main {
     border-top: 1px solid var(--border);
 }
 
+.rangee-outils {
+    display: flex;
+    align-items: stretch;
+    gap: 0.5rem;
+    width: min(24rem, 100%);
+}
+
+.bouton-indice {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.1rem;
+    flex: 0 0 auto;
+    width: 4.4rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--panel-clair);
+    color: var(--muted);
+    cursor: pointer;
+}
+
+.bouton-indice svg {
+    width: 1.2rem;
+    height: 1.2rem;
+    fill: none;
+    stroke: #ffbd00;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.bouton-indice .prix-indice { font-size: 0.62rem; }
+.bouton-indice:disabled { opacity: 0.4; cursor: default; }
+
 .bascule {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 0.55rem;
-    width: min(22rem, 100%);
+    flex: 1 1 auto;
     min-height: 3.1rem;
     border-radius: var(--radius);
     border: 1px solid var(--border);
@@ -266,7 +336,8 @@ main {
 
 /* segments de difficulté */
 
-.segments { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.4rem; }
+.segments { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.4rem; }
+.segments.quatre { grid-template-columns: repeat(4, 1fr); }
 
 .segment {
     display: flex;
@@ -318,6 +389,20 @@ main {
 
 .resume-stats { margin: 0 0 0.6rem; font-size: 0.85rem; color: var(--muted); }
 
+.explication { margin: 0.5rem 0 0; font-size: 0.8rem; color: var(--muted); line-height: 1.4; }
+
+.fin-autopsie {
+    margin: 0 0 0.7rem;
+    padding: 0.6rem 0.8rem;
+    border-left: 3px solid var(--border);
+    background: #121826;
+    border-radius: 0 8px 8px 0;
+    font-size: 0.9rem;
+}
+
+.fin-autopsie.evitable { border-left-color: var(--rouge); }
+.fin-autopsie.inevitable { border-left-color: #ffbd00; }
+
 .records { list-style: none; margin: 0; padding: 0; font-size: 0.9rem; }
 .records li { display: flex; justify-content: space-between; padding: 0.3rem 0; border-bottom: 1px solid var(--border); }
 .records li span:last-child { font-variant-numeric: tabular-nums; font-weight: 600; }
@@ -367,5 +452,6 @@ main {
 /* Écran large : la grille respire, la barre du bas devient secondaire. */
 @media (min-width: 720px) {
     .topbar h1 { font-size: 1.35rem; }
-    .bascule { width: 16rem; min-height: 2.6rem; font-size: 0.95rem; }
+    .rangee-outils { width: min(20rem, 100%); }
+    .bascule { min-height: 2.6rem; font-size: 0.95rem; }
 }

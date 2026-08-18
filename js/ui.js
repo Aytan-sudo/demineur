@@ -1,55 +1,68 @@
-// Tout ce qui touche au DOM autour de la grille : compteurs, dialogues,
-// reglages. La grille elle-meme est dessinee par render.js.
+// Tout ce qui touche au DOM autour de la grille : compteurs, bandeau,
+// dialogues, reglages. La grille elle-meme est dessinee par render.js.
 
 import { DIFFICULTES, minesMaximales } from './engine.js';
+import { MODES_CHIFFRES, RYTHMES } from './variantes.js';
 import { chargerRecords, chargerStats } from './storage.js';
+import { resumeDe } from './defi.js';
 
 const $ = identifiant => document.getElementById(identifiant);
 
 export const elements = {
     canvas: $('grille'),
+    bandeau: $('bandeau-recette'),
     valeurMines: $('valeur-mines'),
+    compteurTemps: $('compteur-temps'),
     valeurTemps: $('valeur-temps'),
     vies: $('vies'),
     visage: $('bouton-rejouer'),
     annonce: $('annonce'),
     bascule: $('bascule-mode'),
     basculeTexte: document.querySelector('.bascule-texte'),
+    indice: $('bouton-indice'),
     astuce: $('astuce'),
+    boutonDefi: $('bouton-defi'),
     dialogueFin: $('dialogue-fin'),
     finTitre: $('fin-titre'),
     finDetail: $('fin-detail'),
+    finAutopsie: $('fin-autopsie'),
     finRecord: $('fin-record'),
+    finPartager: $('fin-partager'),
     dialogueReglages: $('dialogue-reglages'),
     dialogueAide: $('dialogue-aide')
 };
 
 export function formaterTemps(ms) {
-    const total = Math.floor(ms / 1000);
+    const total = Math.max(0, Math.floor(ms / 1000));
     const minutes = Math.floor(total / 60);
     return `${minutes}:${String(total % 60).padStart(2, '0')}`;
 }
 
-export function majCompteurs({ mines, temps }) {
+// En blitz, le chrono compte a l'envers : c'est le meme afficheur, mais il
+// prend une couleur d'alerte sur la fin de sablier.
+export function majCompteurs({ mines, temps, restant }) {
     elements.valeurMines.textContent = String(mines);
-    elements.valeurTemps.textContent = formaterTemps(temps);
+    elements.valeurTemps.textContent = formaterTemps(restant ?? temps);
+    elements.compteurTemps.classList.toggle('urgence', restant !== null && restant < 15000);
 }
 
 export function majVies(restantes, total) {
-    if (total <= 1) {
+    if (total === 1) {
         elements.vies.hidden = true;
         return;
     }
     elements.vies.hidden = false;
-    elements.vies.innerHTML = Array.from({ length: total }, (_, position) =>
-        `<span class="${position < restantes ? '' : 'perdue'}">❤</span>`).join('');
+    elements.vies.innerHTML = Number.isFinite(total)
+        ? Array.from({ length: total }, (_, position) =>
+            `<span class="${position < restantes ? '' : 'perdue'}">❤</span>`).join('')
+        : '<span class="infini">∞</span>';
 }
 
 export const majVisage = tete => { elements.visage.textContent = tete; };
 
 let minuterieAnnonce = null;
 
-export function annoncer(texte, duree = 2400) {
+export function annoncer(texte, duree = 2600) {
     clearTimeout(minuterieAnnonce);
     elements.annonce.textContent = texte;
     elements.annonce.classList.add('visible');
@@ -67,31 +80,42 @@ export function majBascule(modeDrapeau) {
     elements.astuce.textContent = `${auDoigt ? 'Appui long' : 'Clic droit'} : ${inverse}`;
 }
 
+// Le bandeau ne dit rien quand la partie est un demineur ordinaire : une ligne
+// de texte permanente qui repete « carré, chiffres exacts » n'apprend rien.
+export function majBandeau({ config, defi }) {
+    const recette = resumeDe(config);
+    const ordinaire = recette === (DIFFICULTES[config.difficulte]?.libelle ?? 'Perso');
+
+    if (defi) elements.bandeau.innerHTML = `<strong>Grille du jour</strong> · ${recette}`;
+    else elements.bandeau.textContent = ordinaire ? '' : recette;
+
+    elements.boutonDefi.setAttribute('aria-pressed', String(Boolean(defi)));
+}
+
 // ------------------------------------------------------------------ records
 
-const LIBELLES_VARIANTES = { sh: 'sans hasard', std: 'classique' };
+const NOMS_TRAITS = {
+    hexagone: 'hexagones', cavalier: 'cavalier', tore: 'bords recollés',
+    menteurs: 'menteurs', flous: 'flous', sh: 'sans hasard', std: 'classique',
+    vies: '3 vies', zen: 'zen', blitz: 'blitz'
+};
 
 function libelleClassement(cle) {
-    const [format, variante, vies] = cle.split('|');
+    const [format, ...traits] = cle.split('|');
     const nom = DIFFICULTES[format]?.libelle ?? format.replace('perso-', 'Perso ');
-    const coeurs = vies === 'v1' ? '' : ` · ${vies.slice(1)} vies`;
-    return `${nom} · ${LIBELLES_VARIANTES[variante] ?? variante}${coeurs}`;
+    return [nom, ...traits.map(trait => NOMS_TRAITS[trait] ?? trait)].join(' · ');
 }
 
 export function majRecords() {
     const stats = chargerStats();
-    const resume = document.getElementById('resume-stats');
-    resume.textContent = stats.jouees === 0
+    $('resume-stats').textContent = stats.jouees === 0
         ? 'Aucune partie jouée'
         : `${stats.jouees} partie${stats.jouees > 1 ? 's' : ''} · `
           + `${Math.round((stats.gagnees / stats.jouees) * 100)} % de victoires · `
           + `série de ${stats.serie} (record ${stats.meilleureSerie})`;
 
-    const records = chargerRecords();
-    const liste = $('liste-records');
-    const entrees = Object.entries(records).sort((a, b) => a[0].localeCompare(b[0]));
-
-    liste.innerHTML = entrees.length === 0
+    const entrees = Object.entries(chargerRecords()).sort((a, b) => a[0].localeCompare(b[0]));
+    $('liste-records').innerHTML = entrees.length === 0
         ? '<li class="vide">Aucun temps enregistré</li>'
         : entrees.map(([cle, temps]) =>
             `<li><span>${libelleClassement(cle)}</span><span>${formaterTemps(temps)}</span></li>`).join('');
@@ -99,12 +123,19 @@ export function majRecords() {
 
 // ----------------------------------------------------------------- reglages
 
+const refletDesSegments = (conteneur, attribut, valeur) => {
+    for (const bouton of document.querySelectorAll(`#${conteneur} .segment`)) {
+        bouton.setAttribute('aria-pressed', String(bouton.dataset[attribut] === valeur));
+    }
+};
+
 // Rend les champs coherents avec les preferences en cours et renvoie le nombre
 // de mines maximal acceptable, dont l'appelant se sert pour brider la saisie.
 export function refletDesReglages(preferences) {
-    for (const bouton of document.querySelectorAll('#segments-difficulte .segment')) {
-        bouton.setAttribute('aria-pressed', String(bouton.dataset.difficulte === preferences.difficulte));
-    }
+    refletDesSegments('segments-difficulte', 'difficulte', preferences.difficulte);
+    refletDesSegments('segments-plateau', 'topologie', preferences.topologie);
+    refletDesSegments('segments-chiffres', 'chiffres', preferences.chiffres);
+    refletDesSegments('segments-rythme', 'rythme', preferences.rythme);
 
     const perso = preferences.difficulte === 'perso';
     $('champs-perso').hidden = !perso;
@@ -120,8 +151,11 @@ export function refletDesReglages(preferences) {
         ? `Densité de ${Math.round(densite * 100)} % : la grille sans hasard peut mettre une seconde à se composer.`
         : `Jusqu'à ${maximum} mines.`;
 
+    $('explication-chiffres').textContent = MODES_CHIFFRES[preferences.chiffres].resume;
+    $('explication-rythme').textContent = RYTHMES[preferences.rythme].resume;
+
+    $('option-enroule').checked = preferences.enroule;
     $('option-sans-hasard').checked = preferences.sansHasard;
-    $('option-vies').checked = preferences.vies > 1;
     $('option-doutes').checked = preferences.doutes;
     $('option-vibration').checked = preferences.vibration;
 
@@ -129,13 +163,33 @@ export function refletDesReglages(preferences) {
     return maximum;
 }
 
-export function ouvrirFin({ gagne, temps, record, garanti, vies, viesTotales }) {
-    elements.finTitre.textContent = gagne ? 'Grille déminée' : 'Explosion';
+// --------------------------------------------------------------- fin de partie
 
-    const details = [gagne ? `Terminée en ${formaterTemps(temps)}` : `Perdue après ${formaterTemps(temps)}`];
-    if (gagne && viesTotales > 1) details.push(`${vies} cœur${vies > 1 ? 's' : ''} sur ${viesTotales}`);
+const AUTOPSIE = {
+    evitable: ['Cette mine était identifiable : la logique la désignait déjà.', 'evitable'],
+    ailleurs: ['Il restait des déductions à faire ailleurs sur la grille.', 'ailleurs'],
+    inevitable: ['Aucune déduction ne pouvait vous sauver ici.', 'inevitable']
+};
+
+export function ouvrirFin({ gagne, tempsEcoule, record, garanti, vies, viesTotales, autopsie, defi, expire }) {
+    elements.finTitre.textContent = gagne ? 'Grille déminée' : (expire ? 'Temps écoulé' : 'Explosion');
+
+    const details = [gagne
+        ? `Terminée en ${formaterTemps(tempsEcoule)}`
+        : `Perdue après ${formaterTemps(tempsEcoule)}`];
+    if (gagne && Number.isFinite(viesTotales) && viesTotales > 1) {
+        details.push(`${vies} cœur${vies > 1 ? 's' : ''} sur ${viesTotales}`);
+    }
     if (!garanti) details.push('grille non garantie sans hasard');
     elements.finDetail.textContent = details.join(' · ');
+
+    const analyse = autopsie && !gagne ? AUTOPSIE[autopsie.verdict] : null;
+    elements.finAutopsie.hidden = analyse === null;
+    if (analyse) {
+        const [texte, classe] = analyse;
+        elements.finAutopsie.textContent = texte;
+        elements.finAutopsie.className = `fin-autopsie ${classe}`;
+    }
 
     elements.finRecord.hidden = record === undefined;
     if (record !== undefined) {
@@ -143,5 +197,7 @@ export function ouvrirFin({ gagne, temps, record, garanti, vies, viesTotales }) 
             ? 'Premier temps sur cette configuration'
             : `Nouveau record, ${formaterTemps(record)} auparavant`;
     }
+
+    elements.finPartager.hidden = !defi;
     elements.dialogueFin.showModal();
 }

@@ -5,6 +5,8 @@
 
 import { creerPlateau } from './board.js';
 import { genererGrille } from './generator.js';
+import { RYTHMES, compteARebours } from './variantes.js';
+import { deduire, resoudre, INCONNU, REVELE, MINE } from './solver.js';
 
 export const CACHEE = 0;
 export const REVELEE = 1;
@@ -30,27 +32,42 @@ export function nouvellePartie({
     colonnes = 9,
     lignes = 9,
     mines = 10,
-    vies = 1,
     sansHasard = true,
+    topologie = 'carre',
     enroule = false,
+    chiffres = 'exacts',
+    rythme = 'classique',
     aleatoire = Math.random,
     maintenant = () => Date.now()
 } = {}) {
-    const plateau = creerPlateau({ colonnes, lignes, enroule });
+    const plateau = creerPlateau({ colonnes, lignes, topologie, enroule });
+    const reglesDuRythme = RYTHMES[rythme] ?? RYTHMES.classique;
+    const vies = reglesDuRythme.vies;
+
     return {
         plateau,
-        config: { colonnes, lignes, mines, vies, sansHasard, enroule },
+        config: {
+            colonnes, lignes, mines, sansHasard,
+            topologie, enroule, chiffres, rythme, vies
+        },
+        rebours: reglesDuRythme.rebours
+            ? compteARebours({ taille: plateau.taille, mines })
+            : null,
         aleatoire,
         maintenant,
         mines: new Uint8Array(plateau.taille),
         chiffres: new Uint8Array(plateau.taille),
+        libelles: null,       // texte affiche par case, pose au premier clic
+        sommes: null,         // totaux encore possibles, vus du joueur
         etat: new Uint8Array(plateau.taille),
         explosee: new Uint8Array(plateau.taille),
         statut: ATTENTE,
+        autopsie: null,
         viesRestantes: vies,
         garanti: sansHasard,
         revelees: 0,          // cases sans mine ouvertes
         drapeaux: 0,
+        indices: 0,
         debutMs: null,
         finMs: null
     };
@@ -74,6 +91,23 @@ export const tempsEcoule = partie => {
     if (partie.debutMs === null) return 0;
     return (partie.finMs ?? partie.maintenant()) - partie.debutMs;
 };
+
+// Blitz : le sablier part plein et se recharge a chaque case ouverte. Ailleurs,
+// il n'y a pas de sablier du tout.
+export const tempsRestant = partie => {
+    if (!partie.rebours) return null;
+    if (partie.statut === ATTENTE) return partie.rebours.depart;
+    return partie.rebours.depart + partie.revelees * partie.rebours.parCase - tempsEcoule(partie);
+};
+
+// A appeler au fil du chrono : c'est la seule fin de partie qui n'est declenchee
+// par aucun geste du joueur.
+export function verifierTemps(partie) {
+    if (partie.statut !== ENCOURS || !partie.rebours) return false;
+    if (tempsRestant(partie) > 0) return false;
+    terminer(partie, PERDU);
+    return true;
+}
 
 const estNeutralisee = (partie, index) =>
     partie.etat[index] === DRAPEAU || partie.explosee[index] === 1;
@@ -127,6 +161,11 @@ function ouvrir(partie, depart, revelees) {
 // Une mine sautee. Avec des vies restantes la partie continue, la mine reste
 // visible et neutralisee : elle ne peut plus surprendre deux fois.
 function declencher(partie, index, explosions) {
+    // L'analyse doit se faire avant que la mine ne rejoigne l'etat connu,
+    // sinon on demanderait au solveur si l'on pouvait deviner ce qu'il vient
+    // d'apprendre.
+    if (!partie.autopsie) partie.autopsie = autopsier(partie, index);
+
     partie.explosee[index] = 1;
     partie.etat[index] = REVELEE;
     explosions.push(index);
@@ -137,15 +176,18 @@ function declencher(partie, index, explosions) {
 function demarrerSiBesoin(partie, depart) {
     if (partie.statut !== ATTENTE) return;
 
-    const { mines, chiffres, garanti } = genererGrille({
+    const { mines, chiffres, libelles, sommes, garanti } = genererGrille({
         plateau: partie.plateau,
         nbMines: partie.config.mines,
         depart,
         sansHasard: partie.config.sansHasard,
+        modeChiffres: partie.config.chiffres,
         aleatoire: partie.aleatoire
     });
     partie.mines = mines;
     partie.chiffres = chiffres;
+    partie.libelles = libelles;
+    partie.sommes = sommes;
     partie.garanti = garanti;
     partie.statut = ENCOURS;
     partie.debutMs = partie.maintenant();
@@ -211,6 +253,71 @@ export function accord(partie, index) {
     }
     if (partie.statut === ENCOURS) verifierVictoire(partie);
     return { revelees, explosions, refuse: revelees.length === 0 && explosions.length === 0 };
+}
+
+// ------------------------------------------------------------------ analyse
+
+// Ce que le solveur a le droit de savoir : les cases ouvertes, et les mines
+// qui ont explose — celles-la sont certaines. Les drapeaux du joueur sont
+// volontairement ignores : s'il en a pose un a cote de la plaque, un indice
+// bati dessus l'enfoncerait dans son erreur.
+function vueDuJoueur(partie) {
+    const vue = new Uint8Array(partie.plateau.taille);
+    for (let index = 0; index < partie.plateau.taille; index++) {
+        if (partie.explosee[index]) vue[index] = MINE;
+        else if (partie.etat[index] === REVELEE) vue[index] = REVELE;
+        else vue[index] = INCONNU;
+    }
+    return vue;
+}
+
+export const PENALITE_INDICE = 15000;
+
+// Une case dont on est sur. On rend d'abord une case sure a ouvrir — c'est ce
+// qui debloque — et a defaut une mine a marquer.
+//
+// Le prix est du temps : quinze secondes ajoutees au chrono, retirees du sablier
+// en blitz. Sans prix, l'indice remplacerait la reflexion.
+export function indice(partie) {
+    if (partie.statut !== ENCOURS) return null;
+
+    const { sures, mines } = deduire({
+        plateau: partie.plateau,
+        sommes: partie.sommes,
+        etat: vueDuJoueur(partie),
+        minesTotales: partie.config.mines
+    });
+
+    const aOuvrir = sures.filter(index => partie.etat[index] !== REVELEE);
+    const aMarquer = mines.filter(index => partie.etat[index] !== DRAPEAU);
+
+    const index = aOuvrir[0] ?? aMarquer[0];
+    if (index === undefined) return null;
+
+    partie.indices++;
+    partie.debutMs -= PENALITE_INDICE;   // recule le depart : le chrono saute
+    return { index, genre: aOuvrir.length > 0 ? 'sure' : 'mine' };
+}
+
+// Pourquoi la partie s'est arretee la. Repond a la seule question qui compte
+// apres une explosion : est-ce que je pouvais le savoir ?
+//
+// On ne se contente pas d'un tour de deduction : on pousse la logique jusqu'a
+// ce qu'elle n'ait plus rien a dire, comme l'aurait fait un joueur patient. Une
+// mine identifiable seulement apres trois deductions enchainees reste une mine
+// identifiable.
+function autopsier(partie, index) {
+    const avant = vueDuJoueur(partie);
+    const { etat } = resoudre({
+        plateau: partie.plateau,
+        chiffres: partie.chiffres,
+        sommes: partie.sommes,
+        mines: partie.mines,
+        etatInitial: avant
+    });
+
+    if (etat[index] === MINE) return { verdict: 'evitable' };
+    return { verdict: etat.some((valeur, i) => valeur !== avant[i]) ? 'ailleurs' : 'inevitable' };
 }
 
 // Les voisines encore fermees d'un chiffre : le rendu les enfonce pendant

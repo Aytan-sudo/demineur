@@ -1,16 +1,25 @@
 // Solveur logique : que peut-on deduire d'une grille en cours, sans jamais
 // regarder ou sont vraiment les mines ?
 //
-// Il sert a trois choses : verifier qu'une grille se termine sans deviner (le
-// generateur s'en sert pour rejeter les grilles injustes), fournir un indice au
-// joueur, et dire apres coup si un clic perdant etait deductible ou non.
+// Il sert a quatre choses : verifier qu'une grille se termine sans deviner (le
+// generateur s'en sert pour rejeter les grilles injustes), donner un indice au
+// joueur, dire apres coup si un clic perdant etait deductible, et rien de tout
+// cela ne doit dependre de la variante jouee.
 //
-// Trois etages, du moins cher au plus cher. On s'arrete des qu'un etage trouve
-// quelque chose, ce qui garde le cas courant tres rapide :
+// D'ou la forme des contraintes. Une case revelee ne dit pas « il y a n mines
+// autour » mais « le total fait partie de cet ensemble de valeurs » :
 //
-//   1. Regle triviale  : un 1 avec une seule case inconnue -> c'est une mine.
+//   chiffres exacts   -> [3]
+//   chiffres menteurs -> [2, 4]
+//   chiffres flous    -> [2, 3]
+//
+// Les trois etages de deduction travaillent sur cette forme unique, du moins
+// cher au plus cher, et s'arretent des que l'un trouve quelque chose :
+//
+//   1. Regle triviale  : le total ne peut valoir que 0, ou que le nombre de
+//                        cases en jeu.
 //   2. Sous-ensembles  : si les mines de A sont forcement incluses dans B,
-//                        alors B prive de A contient exactement b-a mines.
+//                        alors B prive de A porte les totaux b - a.
 //   3. Enumeration     : on essaie toutes les repartitions possibles sur la
 //                        frontiere. Une case minee dans zero repartition est
 //                        sure ; minee dans toutes, c'est une mine. C'est ce
@@ -26,33 +35,55 @@ const MAX_SOLUTIONS = 200000;
 
 // --------------------------------------------------------------- contraintes
 
-// Une contrainte = « parmi ces cases inconnues, il y en a exactement n minees ».
-// On en produit une par case revelee qui touche encore de l'inconnu.
-function collecterContraintes({ plateau, chiffres, etat }) {
+// Une contrainte = « parmi ces cases inconnues, le nombre de mines vaut l'une
+// de ces valeurs ». On en produit une par case revelee qui touche de l'inconnu.
+//
+// Deux resserrements gratuits au passage. Une case revelee qui garde des
+// voisines fermees ne peut pas valoir zero — un zero aurait ouvert sa nappe et
+// tout le monde le verrait. Et le total residuel est borne par le nombre de
+// cases encore en jeu.
+function collecterContraintes({ plateau, sommes, etat }) {
     const contraintes = [];
+
     for (let index = 0; index < plateau.taille; index++) {
         if (etat[index] !== REVELE) continue;
 
-        let restant = chiffres[index];
         const cases = [];
+        let connues = 0;
         for (const voisin of plateau.voisins[index]) {
-            if (etat[voisin] === MINE) restant--;
+            if (etat[voisin] === MINE) connues++;
             else if (etat[voisin] === INCONNU) cases.push(voisin);
         }
-        if (cases.length > 0) contraintes.push({ cases, mines: restant });
+        if (cases.length === 0) continue;
+
+        const valeurs = [];
+        for (const total of sommes[index]) {
+            if (total === 0) continue;                  // aurait ouvert sa nappe
+            const reste = total - connues;
+            if (reste >= 0 && reste <= cases.length) valeurs.push(reste);
+        }
+        if (valeurs.length > 0) contraintes.push({ cases, valeurs });
     }
     return contraintes;
 }
 
+const minimum = valeurs => Math.min(...valeurs);
+const maximum = valeurs => Math.max(...valeurs);
+
 function appliquerRegleTriviale(contraintes, sures, mines) {
-    for (const { cases, mines: n } of contraintes) {
-        if (n === 0) for (const c of cases) sures.add(c);
-        else if (n === cases.length) for (const c of cases) mines.add(c);
+    for (const { cases, valeurs } of contraintes) {
+        if (maximum(valeurs) === 0) for (const c of cases) sures.add(c);
+        else if (minimum(valeurs) === cases.length) for (const c of cases) mines.add(c);
     }
 }
 
 // Deux contraintes ne peuvent s'eclairer que si elles partagent des cases ;
 // inutile de comparer toute la grille avec elle-meme.
+//
+// Sur des ensembles de valeurs, la difference B\A porte les totaux b - a. C'est
+// une sur-approximation — toutes les combinaisons ne sont pas forcement
+// realisables — mais elle ne conclut que lorsque toutes s'accordent, ce qui
+// reste sur.
 function appliquerSousEnsembles(contraintes, sures, mines) {
     const parCase = new Map();
     contraintes.forEach((contrainte, position) => {
@@ -62,7 +93,7 @@ function appliquerSousEnsembles(contraintes, sures, mines) {
         }
     });
 
-    const ensembles = contraintes.map(c => new Set(c.cases));
+    const ensembles = contraintes.map(contrainte => new Set(contrainte.cases));
 
     for (let a = 0; a < contraintes.length; a++) {
         const voisines = new Set();
@@ -72,17 +103,20 @@ function appliquerSousEnsembles(contraintes, sures, mines) {
 
         for (const b of voisines) {
             if (contraintes[a].cases.length >= contraintes[b].cases.length) continue;
-            // a inclus dans b ?
-            let inclus = true;
-            for (const c of contraintes[a].cases) {
-                if (!ensembles[b].has(c)) { inclus = false; break; }
-            }
-            if (!inclus) continue;
+            if (![...ensembles[a]].every(c => ensembles[b].has(c))) continue;
 
             const reste = contraintes[b].cases.filter(c => !ensembles[a].has(c));
-            const n = contraintes[b].mines - contraintes[a].mines;
-            if (n === 0) for (const c of reste) sures.add(c);
-            else if (n === reste.length) for (const c of reste) mines.add(c);
+            const differences = [];
+            for (const valeurB of contraintes[b].valeurs) {
+                for (const valeurA of contraintes[a].valeurs) {
+                    const ecart = valeurB - valeurA;
+                    if (ecart >= 0 && ecart <= reste.length) differences.push(ecart);
+                }
+            }
+            if (differences.length === 0) continue;
+
+            if (maximum(differences) === 0) for (const c of reste) sures.add(c);
+            else if (minimum(differences) === reste.length) for (const c of reste) mines.add(c);
         }
     }
 }
@@ -138,26 +172,32 @@ function enumererGroupe(groupe) {
     if (cases.length > MAX_VARIABLES) return null;
 
     const rang = new Map(cases.map((c, position) => [c, position]));
-    const contraintes = groupe.contraintes.map(({ cases: liste, mines }) => ({
+    const contraintes = groupe.contraintes.map(({ cases: liste, valeurs }) => ({
         indices: liste.map(c => rang.get(c)),
-        mines
+        valeurs: new Set(valeurs),
+        min: minimum(valeurs),
+        max: maximum(valeurs)
     }));
 
-    // Pour couper tot : a chaque variable, les contraintes entierement decidees
-    // une fois cette variable posee.
-    const aVerifier = cases.map(() => []);
-    contraintes.forEach(contrainte => {
-        const dernier = Math.max(...contrainte.indices);
-        aVerifier[dernier].push(contrainte);
+    // Pour chaque variable, les contraintes ou elle apparait : on maintient
+    // leur somme partielle au fil de la descente pour elaguer des qu'une
+    // branche devient impossible, au lieu d'attendre la fin.
+    const impacts = cases.map(() => []);
+    contraintes.forEach((contrainte, position) => {
+        for (const indice of contrainte.indices) impacts[indice].push(position);
     });
 
+    const partiels = new Int32Array(contraintes.length);
+    const restantes = Int32Array.from(contraintes, contrainte => contrainte.indices.length);
+
     const parCompte = new Map();
-    const valeurs = new Uint8Array(cases.length);
+    const valeursPosees = new Uint8Array(cases.length);
     let solutions = 0;
     let deborde = false;
 
     const explorer = (position, poses) => {
         if (deborde) return;
+
         if (position === cases.length) {
             solutions++;
             if (solutions > MAX_SOLUTIONS) { deborde = true; return; }
@@ -167,21 +207,31 @@ function enumererGroupe(groupe) {
                 parCompte.set(poses, stats);
             }
             stats.solutions++;
-            for (let i = 0; i < valeurs.length; i++) if (valeurs[i]) stats.avecMine[i]++;
+            for (let i = 0; i < valeursPosees.length; i++) if (valeursPosees[i]) stats.avecMine[i]++;
             return;
         }
 
         for (const valeur of [0, 1]) {
-            valeurs[position] = valeur;
-            let valide = true;
-            for (const contrainte of aVerifier[position]) {
-                let somme = 0;
-                for (const indice of contrainte.indices) somme += valeurs[indice];
-                if (somme !== contrainte.mines) { valide = false; break; }
+            let possible = true;
+            for (const position2 of impacts[position]) {
+                partiels[position2] += valeur;
+                restantes[position2]--;
+                if (partiels[position2] > contraintes[position2].max) possible = false;
+                else if (partiels[position2] + restantes[position2] < contraintes[position2].min) possible = false;
+                else if (restantes[position2] === 0 && !contraintes[position2].valeurs.has(partiels[position2])) possible = false;
             }
-            if (valide) explorer(position + 1, poses + valeur);
+
+            if (possible) {
+                valeursPosees[position] = valeur;
+                explorer(position + 1, poses + valeur);
+                valeursPosees[position] = 0;
+            }
+
+            for (const position2 of impacts[position]) {
+                partiels[position2] -= valeur;
+                restantes[position2]++;
+            }
         }
-        valeurs[position] = 0;
     };
 
     explorer(0, 0);
@@ -210,7 +260,6 @@ function appliquerEnumeration(contraintes, sures, mines, contexte) {
 
     const { minesRestantes, inconnuesHorsFront } = contexte;
     const minimumFront = Math.max(0, minesRestantes - inconnuesHorsFront);
-
     const valide = total => total <= minesRestantes && total >= minimumFront;
 
     for (let position = 0; position < groupes.length; position++) {
@@ -253,12 +302,12 @@ function appliquerEnumeration(contraintes, sures, mines, contexte) {
 //
 // `etages` borne les regles employees (1 trivial, 2 + sous-ensembles, 3 +
 // enumeration). Les tests s'en servent pour verifier chaque etage isolement, et
-// ce sera la manette d'un futur bouton d'indice gradue.
-export function deduire({ plateau, chiffres, etat, minesTotales }, etages = 3) {
+// c'est la manette du bouton d'indice.
+export function deduire({ plateau, sommes, etat, minesTotales }, etages = 3) {
     const sures = new Set();
     const mines = new Set();
 
-    const contraintes = collecterContraintes({ plateau, chiffres, etat });
+    const contraintes = collecterContraintes({ plateau, sommes, etat });
 
     appliquerRegleTriviale(contraintes, sures, mines);
     if (sures.size === 0 && mines.size === 0 && etages >= 2) {
@@ -314,38 +363,52 @@ function revelerCascade(plateau, chiffres, etat, depart) {
 
 // Rejoue la grille en n'employant que la logique. Renvoie `resolu: true` si
 // toutes les cases sans mine ont pu etre ouvertes sans jamais tirer au sort.
+//
+// `etatInitial` permet de reprendre une partie en cours au lieu de partir du
+// premier clic : c'est ce dont l'autopsie a besoin pour repondre « pouvais-tu
+// le savoir ? ». Il doit decrire un etat que le moteur aurait pu produire — une
+// case revelee a zero a forcement ses voisines ouvertes — car les contraintes
+// s'appuient sur cette regularite.
+//
+// `chiffres` est la verite du plateau — elle ne sert qu'a propager les nappes,
+// exactement comme le moteur le ferait. `sommes` est ce que le joueur lit, et
+// c'est la seule chose sur laquelle on raisonne.
+//
 // En cas de blocage, `bloquantes` liste les cases inconnues du front : c'est la
 // que le generateur ira deplacer une mine pour debloquer la situation.
-export function resoudre({ plateau, chiffres, mines, depart }) {
-    const etat = new Uint8Array(plateau.taille);
+export function resoudre({ plateau, chiffres, sommes, mines, depart, etatInitial = null }) {
+    const etat = etatInitial ? Uint8Array.from(etatInitial) : new Uint8Array(plateau.taille);
     const minesTotales = mines.reduce((total, valeur) => total + valeur, 0);
+    const valeursLues = sommes ?? Array.from(chiffres, valeur => [valeur]);
 
-    revelerCascade(plateau, chiffres, etat, depart);
+    if (depart !== undefined) revelerCascade(plateau, chiffres, etat, depart);
 
-    let aRevelerEncore = 0;
-    for (let index = 0; index < plateau.taille; index++) {
-        if (!mines[index] && etat[index] !== REVELE) aRevelerEncore++;
-    }
+    const resteAOuvrir = () => {
+        let compte = 0;
+        for (let index = 0; index < plateau.taille; index++) {
+            if (!mines[index] && etat[index] !== REVELE) compte++;
+        }
+        return compte;
+    };
+
+    let aRevelerEncore = resteAOuvrir();
 
     while (aRevelerEncore > 0) {
-        const { sures, mines: deduites } = deduire({ plateau, chiffres, etat, minesTotales });
+        const { sures, mines: deduites } = deduire({
+            plateau, sommes: valeursLues, etat, minesTotales
+        });
         if (sures.length === 0 && deduites.length === 0) break;
 
         for (const index of deduites) etat[index] = MINE;
         for (const index of sures) {
-            if (etat[index] === REVELE) continue;
-            revelerCascade(plateau, chiffres, etat, index);
+            if (etat[index] !== REVELE) revelerCascade(plateau, chiffres, etat, index);
         }
-
-        aRevelerEncore = 0;
-        for (let index = 0; index < plateau.taille; index++) {
-            if (!mines[index] && etat[index] !== REVELE) aRevelerEncore++;
-        }
+        aRevelerEncore = resteAOuvrir();
     }
 
     const bloquantes = [];
     if (aRevelerEncore > 0) {
-        for (const contrainte of collecterContraintes({ plateau, chiffres, etat })) {
+        for (const contrainte of collecterContraintes({ plateau, sommes: valeursLues, etat })) {
             bloquantes.push(...contrainte.cases);
         }
     }

@@ -1,7 +1,7 @@
 {
     "name": "Démineur",
     "short_name": "Démineur",
-    "description": "Le démineur, avec des grilles garanties sans coup de dés. Jouable au doigt comme à la souris, hors ligne.",
+    "description": "Le démineur et ses variantes : hexagones, chiffres menteurs, défi du jour. Des grilles garanties sans coup de dés.",
     "lang": "fr",
     "start_url": "./",
     "scope": "./",

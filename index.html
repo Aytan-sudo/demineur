@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Démineur</title>
-<meta name="description" content="Le démineur, avec des grilles garanties sans coup de dés. Jouable au doigt comme à la souris, hors ligne.">
+<meta name="description" content="Le démineur, avec des grilles garanties sans coup de dés. Hexagones, chiffres menteurs, défi du jour. Jouable au doigt comme à la souris, hors ligne.">
 <meta name="theme-color" content="#0d1117">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
@@ -16,12 +16,22 @@
 <header class="topbar">
     <button type="button" class="icon-button" id="bouton-aide" aria-label="Règles du jeu">?</button>
     <h1>DÉMINEUR</h1>
-    <button type="button" class="icon-button" id="bouton-reglages" aria-label="Réglages">
-        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm8.4 3.5c0 .5-.05.98-.13 1.45l2.05 1.6-2 3.46-2.42-.98a8.2 8.2 0 0 1-2.5 1.45L15 21.9H11l-.4-2.92a8.2 8.2 0 0 1-2.5-1.45l-2.42.98-2-3.46 2.05-1.6a8.6 8.6 0 0 1 0-2.9L3.68 8.95l2-3.46 2.42.98a8.2 8.2 0 0 1 2.5-1.45L11 2.1h4l.4 2.92c.9.33 1.74.82 2.5 1.45l2.42-.98 2 3.46-2.05 1.6c.08.47.13.95.13 1.45Z"/>
-        </svg>
-    </button>
+    <div class="topbar-actions">
+        <button type="button" class="icon-button" id="bouton-defi" aria-label="Grille du jour">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <rect x="3" y="5" width="18" height="16" rx="3"/>
+                <path d="M3 10h18M8 3v4M16 3v4"/>
+            </svg>
+        </button>
+        <button type="button" class="icon-button" id="bouton-reglages" aria-label="Réglages">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false" class="plein">
+                <path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Zm8.4 3.5c0 .5-.05.98-.13 1.45l2.05 1.6-2 3.46-2.42-.98a8.2 8.2 0 0 1-2.5 1.45L15 21.9H11l-.4-2.92a8.2 8.2 0 0 1-2.5-1.45l-2.42.98-2-3.46 2.05-1.6a8.6 8.6 0 0 1 0-2.9L3.68 8.95l2-3.46 2.42.98a8.2 8.2 0 0 1 2.5-1.45L11 2.1h4l.4 2.92c.9.33 1.74.82 2.5 1.45l2.42-.98 2 3.46-2.05 1.6c.08.47.13.95.13 1.45Z"/>
+            </svg>
+        </button>
+    </div>
 </header>
+
+<p class="bandeau" id="bandeau-recette"></p>
 
 <div class="hud">
     <div class="compteur" id="compteur-mines" aria-label="Mines restantes">
@@ -51,26 +61,37 @@
 </main>
 
 <footer class="barre-outils">
-    <button type="button" class="bascule" id="bascule-mode" aria-pressed="false">
-        <svg class="bascule-icone" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-            <g class="icone-creuser">
-                <path d="M4 20 11.5 12.5"/>
-                <path d="M8.6 8.6a6.6 6.6 0 0 1 9.3 9.3z"/>
-            </g>
-            <g class="icone-drapeau">
-                <path d="M6.5 3v18M6.5 4.2l11 4.2-11 4.2"/>
-            </g>
-        </svg>
-        <span class="bascule-texte">Creuser</span>
-    </button>
+    <div class="rangee-outils">
+        <button type="button" class="bascule" id="bascule-mode" aria-pressed="false">
+            <svg class="bascule-icone" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <g class="icone-creuser">
+                    <path d="M4 20 11.5 12.5"/>
+                    <path d="M8.6 8.6a6.6 6.6 0 0 1 9.3 9.3z"/>
+                </g>
+                <g class="icone-drapeau">
+                    <path d="M6.5 3v18M6.5 4.2l11 4.2-11 4.2"/>
+                </g>
+            </svg>
+            <span class="bascule-texte">Creuser</span>
+        </button>
+
+        <button type="button" class="bouton-indice" id="bouton-indice" aria-label="Demander un indice">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.5.4.8 1 .9 1.6h5.2c.1-.6.4-1.2.9-1.6A6 6 0 0 0 12 3Z"/>
+            </svg>
+            <span class="prix-indice">+15 s</span>
+        </button>
+    </div>
     <p class="astuce" id="astuce">Appui long&nbsp;: drapeau</p>
 </footer>
 
 <dialog id="dialogue-fin" class="dialog">
     <h2 id="fin-titre"></h2>
     <p id="fin-detail" class="fin-detail"></p>
+    <p id="fin-autopsie" class="fin-autopsie" hidden></p>
     <p id="fin-record" class="fin-record" hidden></p>
     <div class="dialog-actions">
+        <button type="button" class="button" id="fin-partager" hidden>Partager</button>
         <button type="button" class="button" id="fin-reglages">Réglages</button>
         <button type="button" class="button button-primary" id="fin-rejouer">Rejouer</button>
     </div>
@@ -80,7 +101,7 @@
     <h2>Réglages</h2>
 
     <h3>Difficulté</h3>
-    <div class="segments" id="segments-difficulte" role="group" aria-label="Difficulté">
+    <div class="segments quatre" id="segments-difficulte" role="group" aria-label="Difficulté">
         <button type="button" class="segment" data-difficulte="facile">Facile<small>9×9 · 10</small></button>
         <button type="button" class="segment" data-difficulte="moyen">Moyen<small>16×16 · 40</small></button>
         <button type="button" class="segment" data-difficulte="expert">Expert<small>30×16 · 99</small></button>
@@ -94,19 +115,43 @@
         <p class="perso-info" id="perso-info"></p>
     </div>
 
-    <h3>Variantes</h3>
+    <h3>Plateau</h3>
+    <div class="segments" id="segments-plateau" role="group" aria-label="Forme du plateau">
+        <button type="button" class="segment" data-topologie="carre">Carré<small>8 voisins</small></button>
+        <button type="button" class="segment" data-topologie="hexagone">Hexagone<small>6 voisins</small></button>
+        <button type="button" class="segment" data-topologie="cavalier">Cavalier<small>en L</small></button>
+    </div>
+    <label class="option">
+        <input type="checkbox" id="option-enroule">
+        <span>
+            <strong>Bords recollés</strong>
+            <small>La colonne de droite touche celle de gauche, le haut touche le bas. Plus aucun coin facile.</small>
+        </span>
+    </label>
+
+    <h3>Chiffres</h3>
+    <div class="segments" id="segments-chiffres" role="group" aria-label="Sincérité des chiffres">
+        <button type="button" class="segment" data-chiffres="exacts">Exacts</button>
+        <button type="button" class="segment" data-chiffres="menteurs">Menteurs</button>
+        <button type="button" class="segment" data-chiffres="flous">Flous</button>
+    </div>
+    <p class="explication" id="explication-chiffres"></p>
+
+    <h3>Rythme</h3>
+    <div class="segments quatre" id="segments-rythme" role="group" aria-label="Rythme de la partie">
+        <button type="button" class="segment" data-rythme="classique">Une vie</button>
+        <button type="button" class="segment" data-rythme="vies">Trois vies</button>
+        <button type="button" class="segment" data-rythme="zen">Zen</button>
+        <button type="button" class="segment" data-rythme="blitz">Blitz</button>
+    </div>
+    <p class="explication" id="explication-rythme"></p>
+
+    <h3>Équité</h3>
     <label class="option">
         <input type="checkbox" id="option-sans-hasard">
         <span>
             <strong>Sans hasard</strong>
             <small>La grille n'est tirée que si elle se termine par pure logique. Plus jamais de 50/50 en fin de partie.</small>
-        </span>
-    </label>
-    <label class="option">
-        <input type="checkbox" id="option-vies">
-        <span>
-            <strong>Trois vies</strong>
-            <small>Une mine ne met plus fin à la partie&nbsp;: elle coûte un cœur. Confortable au doigt.</small>
         </span>
     </label>
 
@@ -132,17 +177,27 @@
 
 <dialog id="dialogue-aide" class="dialog">
     <h2>Règles</h2>
-    <p>Ouvrez toutes les cases sans mine. Chaque chiffre annonce le nombre de mines parmi les huit cases qui l'entourent.</p>
+    <p>Ouvrez toutes les cases sans mine. Chaque chiffre annonce le nombre de mines parmi les cases qui l'entourent.</p>
     <ul class="rules">
         <li><span class="sample">3</span> trois mines autour de cette case</li>
         <li><span class="sample sample-drapeau">⚑</span> une mine repérée, marquée d'un drapeau</li>
     </ul>
+
     <h3>Au doigt</h3>
     <p>Un appui creuse, un appui long pose un drapeau. Le bouton du bas inverse les deux si vous préférez enchaîner les drapeaux. Deux doigts pour déplacer la grille et zoomer.</p>
+
     <h3>À la souris</h3>
     <p>Clic gauche pour creuser, clic droit pour marquer, molette pour zoomer.</p>
+
     <h3>Le geste qui change tout</h3>
     <p>Appuyez sur un chiffre déjà entouré de tous ses drapeaux&nbsp;: ses voisines s'ouvrent d'un coup. C'est ce qui rend les grandes grilles jouables.</p>
+
+    <h3>Sans hasard</h3>
+    <p>Par défaut, une grille n'est tirée que si elle se termine par la seule logique. Si vous êtes bloqué, c'est qu'il reste quelque chose à déduire&nbsp;— l'ampoule vous montre où, contre quinze secondes.</p>
+
+    <h3>Les variantes</h3>
+    <p>Le plateau, les chiffres et le rythme se règlent séparément et se combinent librement&nbsp;: un hexagone aux chiffres menteurs en trois vies est une partie parfaitement valable. La grille du jour, elle, en tire une combinaison au sort&nbsp;— la même pour tout le monde.</p>
+
     <div class="dialog-actions">
         <button type="button" class="button button-primary" data-fermer>Jouer</button>
     </div>

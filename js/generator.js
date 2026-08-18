@@ -13,6 +13,7 @@
 
 import { calculerChiffres } from './board.js';
 import { resoudre } from './solver.js';
+import { composerChiffres } from './variantes.js';
 
 const melanger = (liste, aleatoire) => {
     for (let i = liste.length - 1; i > 0; i--) {
@@ -58,42 +59,55 @@ function deplacerUneMine(plateau, mines, bloquantes, protegees, aleatoire) {
     return true;
 }
 
-// Renvoie { mines, chiffres, garanti, essais, ms }.
+// Renvoie { mines, chiffres, libelles, sommes, garanti, essais, ms }.
+//
 // `garanti` dit si la grille rendue est bien resoluble sans deviner : en mode
 // sans hasard on peut manquer de temps sur une densite extreme, et il vaut mieux
 // rendre une grille classique en le disant que de faire attendre le joueur.
+//
+// L'affichage fait partie du tirage. Avec des chiffres menteurs ou flous, deux
+// grilles identiques ne se valent pas selon la facon dont les chiffres sont
+// maquilles : le mensonge se rejoue donc a chaque tentative, au meme titre que
+// la position des mines.
 export function genererGrille({
     plateau,
     nbMines,
     depart,
     sansHasard = true,
+    modeChiffres = 'exacts',
     aleatoire = Math.random,
     budgetMs = 4000,
     maintenant = () => Date.now()
 }) {
     const protegees = zoneProtegee(plateau, depart);
     const mines = placerAuHasard(plateau, nbMines, protegees, aleatoire);
-    let chiffres = calculerChiffres(plateau, mines);
 
-    if (!sansHasard) return { mines, chiffres, garanti: false, essais: 1, ms: 0 };
+    let chiffres = calculerChiffres(plateau, mines);
+    let affichage = composerChiffres({ plateau, chiffres, mode: modeChiffres, aleatoire });
+
+    const resultat = (garanti, essais, ms) => ({
+        mines, chiffres, libelles: affichage.libelles, sommes: affichage.sommes, garanti, essais, ms
+    });
+
+    if (!sansHasard) return resultat(false, 1, 0);
 
     const debut = maintenant();
     let essais = 0;
 
     while (maintenant() - debut < budgetMs) {
         essais++;
-        const { resolu, bloquantes } = resoudre({ plateau, chiffres, mines, depart });
-        if (resolu) {
-            return { mines, chiffres, garanti: true, essais, ms: maintenant() - debut };
-        }
+        const { resolu, bloquantes } = resoudre({
+            plateau, chiffres, sommes: affichage.sommes, mines, depart
+        });
+        if (resolu) return resultat(true, essais, maintenant() - debut);
 
         // Une retouche locale suffit le plus souvent ; sinon on rebat les cartes.
         if (!deplacerUneMine(plateau, mines, bloquantes, protegees, aleatoire)) {
-            const neuves = placerAuHasard(plateau, nbMines, protegees, aleatoire);
-            mines.set(neuves);
+            mines.set(placerAuHasard(plateau, nbMines, protegees, aleatoire));
         }
         chiffres = calculerChiffres(plateau, mines);
+        affichage = composerChiffres({ plateau, chiffres, mode: modeChiffres, aleatoire });
     }
 
-    return { mines, chiffres, garanti: false, essais, ms: maintenant() - debut };
+    return resultat(false, essais, maintenant() - debut);
 }

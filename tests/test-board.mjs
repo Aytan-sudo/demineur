@@ -1,4 +1,4 @@
-import { creerPlateau, construireVoisins, calculerChiffres } from '../js/board.js';
+import { creerPlateau, construireVoisins, calculerChiffres, voisinageReciproque, TOPOLOGIES } from '../js/board.js';
 import { counter } from './harness.mjs';
 
 const { check, report } = counter();
@@ -19,13 +19,44 @@ check('le voisinage est symetrique', plateau.voisins.every((liste, index) =>
 check('aucune case n\'est sa propre voisine',
     plateau.voisins.every((liste, index) => ![...liste].includes(index)));
 
-// Le tore n'est pas propose dans l'interface, mais le voisinage est le point
-// d'extension des variantes de plateau : il doit rester juste.
-const tore = creerPlateau({ colonnes: 4, lignes: 3, enroule: true });
+const tore = creerPlateau({ colonnes: 4, lignes: 4, enroule: true });
 check('sur un tore, toutes les cases ont huit voisins',
     tore.voisins.every(liste => liste.length === 8));
 check('sur un tore, les bords se rejoignent',
-    [...tore.voisins[0]].includes(3) && [...tore.voisins[0]].includes(8));
+    [...tore.voisins[0]].includes(3) && [...tore.voisins[0]].includes(12));
+
+// ------------------------------------------------------------- topologies
+
+const hexagone = creerPlateau({ colonnes: 6, lignes: 6, topologie: 'hexagone' });
+check('un hexagone du centre a six voisins', hexagone.voisins[14].length === 6);
+check('l\'hexagone se dessine comme un hexagone', hexagone.geometrie === 'hexagone');
+check('les rangees decalees ne se decalent pas dans le meme sens',
+    [...hexagone.voisins[7]].join() !== [...hexagone.voisins[13]].join());
+
+const cavalier = creerPlateau({ colonnes: 8, lignes: 8, topologie: 'cavalier' });
+check('le cavalier saute en L', cavalier.voisins[27].length === 8);
+check('le cavalier ne voit pas ses cases adjacentes',
+    ![...cavalier.voisins[27]].includes(28) && ![...cavalier.voisins[27]].includes(19));
+check('le cavalier se dessine sur une grille carree', cavalier.geometrie === 'carre');
+
+// Un voisinage qui n'est pas reciproque rendrait la grille indeductible : une
+// case compterait une mine que sa voisine ignore. C'est la seule contrainte
+// geometrique dure du jeu.
+let reciproques = true;
+for (const topologie of TOPOLOGIES) {
+    for (const enroule of [false, true]) {
+        // L'hexagone enroule exige un nombre pair de rangees ; c'est
+        // `normaliser` qui s'en charge, teste ailleurs.
+        const lignes = topologie === 'hexagone' && enroule ? 8 : 9;
+        if (!voisinageReciproque(creerPlateau({ colonnes: 9, lignes, topologie, enroule }))) {
+            reciproques = false;
+        }
+    }
+}
+check('toutes les topologies ont un voisinage reciproque', reciproques);
+
+check('un hexagone enroule sur un nombre impair de rangees ne se recolle pas',
+    !voisinageReciproque(creerPlateau({ colonnes: 9, lignes: 9, topologie: 'hexagone', enroule: true })));
 
 const mines = new Uint8Array(12);
 mines[5] = 1;

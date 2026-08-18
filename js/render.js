@@ -3,69 +3,135 @@
 // Pourquoi un canvas plutot que des elements DOM ? Une grille d'expert fait 480
 // cases ; en DOM, chaque ouverture en nappe declenche autant de recalculs de
 // style, et ca se sent sur telephone. Le canvas dessine la meme scene en un
-// passage, et il ouvre la porte aux plateaux non carres des futures variantes.
+// passage — et il rend l'hexagone possible, ce qu'une grille CSS ne fait pas.
 //
 // La vue (zoom et deplacement) vit ici aussi : c'est le seul endroit qui sait
 // convertir un pixel d'ecran en numero de case.
 
-import { CACHEE, REVELEE, DRAPEAU, DOUTE, PERDU, GAGNE } from './engine.js';
+import { REVELEE, DRAPEAU, DOUTE, PERDU } from './engine.js';
 
-const CASE = 34;              // taille d'une case dans le repere de la grille
-const MARGE = 8;
+const CASE = 34;              // pas de la grille dans le repere du plateau
+const MARGE = 10;
 
 const COULEURS_CHIFFRES = [
     '', '#4aa3ff', '#3ddc84', '#ff6b6b', '#b98cff',
     '#ffb454', '#35d6c8', '#ff8bd1', '#c3ccd9'
 ];
 
+const FOND = '#090d13';
+const COUVERCLE = '#303c50';
+const COUVERCLE_ENFONCE = '#242e3f';
+const CREUX = '#141a26';
+const CREUX_EXPLOSE = '#5a1420';
+
 const DUREE_REVELATION = 220;
 const DECALAGE_VAGUE = 16;    // ms de retard par anneau : l'ouverture se deroule
 const DUREE_EXPLOSION = 700;
 
-const arrondi = (ctx, x, y, largeur, hauteur, rayon) => {
-    if (ctx.roundRect) ctx.roundRect(x, y, largeur, hauteur, rayon);
-    else ctx.rect(x, y, largeur, hauteur);
-};
-
 const attenuation = t => 1 - Math.pow(1 - t, 3);
+
+// ---------------------------------------------------------------- geometries
+
+// Deux familles de formes seulement. Chacune sait ou se trouve le centre d'une
+// case, quelle place occupe le plateau, comment tracer le contour et comment
+// retrouver la case sous un pixel.
+const RAYON_HEX = CASE / Math.sqrt(3);          // hexagone pointe en haut
+const LARGEUR_HEX = Math.sqrt(3) * RAYON_HEX;   // = CASE
+const PAS_HEX = 1.5 * RAYON_HEX;
+
+const GEOMETRIES = {
+    carre: {
+        marge: 1.5,
+        centre: (x, y) => ({ cx: MARGE + x * CASE + CASE / 2, cy: MARGE + y * CASE + CASE / 2 }),
+        monde: (colonnes, lignes) => ({
+            largeur: colonnes * CASE + MARGE * 2,
+            hauteur: lignes * CASE + MARGE * 2
+        }),
+        contour(ctx, cx, cy, marge) {
+            const cote = CASE - marge * 2;
+            const rayon = 6;
+            if (ctx.roundRect) ctx.roundRect(cx - cote / 2, cy - cote / 2, cote, cote, rayon);
+            else ctx.rect(cx - cote / 2, cy - cote / 2, cote, cote);
+        },
+        approche: (px, py) => ({
+            x: Math.floor((px - MARGE) / CASE),
+            y: Math.floor((py - MARGE) / CASE)
+        })
+    },
+
+    hexagone: {
+        // Un hexagone inscrit dans son rayon touche ses voisins bien avant un
+        // carre : sans cette gouttiere plus large, la grille devient un pave.
+        marge: 2.6,
+        centre: (x, y) => ({
+            cx: MARGE + (x + (y % 2) * 0.5) * LARGEUR_HEX + LARGEUR_HEX / 2,
+            cy: MARGE + y * PAS_HEX + RAYON_HEX
+        }),
+        monde: (colonnes, lignes) => ({
+            largeur: (colonnes + 0.5) * LARGEUR_HEX + MARGE * 2,
+            hauteur: (lignes - 1) * PAS_HEX + 2 * RAYON_HEX + MARGE * 2
+        }),
+        contour(ctx, cx, cy, marge) {
+            const rayon = RAYON_HEX - marge;
+            for (let sommet = 0; sommet < 6; sommet++) {
+                const angle = (Math.PI / 3) * sommet;
+                const px = cx + rayon * Math.sin(angle);
+                const py = cy - rayon * Math.cos(angle);
+                if (sommet === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+        },
+        // Les rangees se chevauchent : on part d'une estimation, puis on garde
+        // le centre le plus proche parmi les candidats alentour.
+        approche: (px, py) => ({
+            x: Math.round((px - MARGE - LARGEUR_HEX / 2) / LARGEUR_HEX),
+            y: Math.round((py - MARGE - RAYON_HEX) / PAS_HEX)
+        })
+    }
+};
 
 export function creerRendu(canvas) {
     const ctx = canvas.getContext('2d');
     const vue = { echelle: 1, x: 0, y: 0 };
     const animations = new Map();   // index -> { debut, type }
     const enfoncees = new Set();    // cases maintenues sous le doigt
+    const soulignees = new Set();   // cases montrees par un indice
 
     let partie = null;
+    let geometrie = GEOMETRIES.carre;
     let largeur = 0;
     let hauteur = 0;
     let secousse = 0;
 
-    const mondeLargeur = () => partie.plateau.colonnes * CASE + MARGE * 2;
-    const mondeHauteur = () => partie.plateau.lignes * CASE + MARGE * 2;
+    const monde = () => geometrie.monde(partie.plateau.colonnes, partie.plateau.lignes);
+    const centreDe = index => geometrie.centre(
+        index % partie.plateau.colonnes,
+        Math.floor(index / partie.plateau.colonnes)
+    );
 
     // Une case doit rester assez grande pour le pouce. Quand la grille ne tient
-    // pas a cette taille, on ne retrecit pas davantage : on laisse le joueur
-    // faire glisser la vue.
+    // pas a cette taille, on ne retrecit pas davantage : le joueur fait glisser.
     const echelleMinimale = () => {
         const grossier = window.matchMedia?.('(pointer: coarse)').matches;
         return (grossier ? 30 : 22) / CASE;
     };
 
     function borner() {
-        const largeurMonde = mondeLargeur() * vue.echelle;
-        const hauteurMonde = mondeHauteur() * vue.echelle;
+        const { largeur: largeurMonde, hauteur: hauteurMonde } = monde();
+        const etendueX = largeurMonde * vue.echelle;
+        const etendueY = hauteurMonde * vue.echelle;
 
-        vue.x = largeurMonde <= largeur
-            ? (largeur - largeurMonde) / 2
-            : Math.min(0, Math.max(largeur - largeurMonde, vue.x));
-        vue.y = hauteurMonde <= hauteur
-            ? (hauteur - hauteurMonde) / 2
-            : Math.min(0, Math.max(hauteur - hauteurMonde, vue.y));
+        vue.x = etendueX <= largeur ? (largeur - etendueX) / 2
+            : Math.min(0, Math.max(largeur - etendueX, vue.x));
+        vue.y = etendueY <= hauteur ? (hauteur - etendueY) / 2
+            : Math.min(0, Math.max(hauteur - etendueY, vue.y));
     }
 
     function ajusterVue() {
         if (!partie) return;
-        const ideal = Math.min(largeur / mondeLargeur(), hauteur / mondeHauteur());
+        const { largeur: largeurMonde, hauteur: hauteurMonde } = monde();
+        const ideal = Math.min(largeur / largeurMonde, hauteur / hauteurMonde);
         vue.echelle = Math.max(echelleMinimale(), Math.min(ideal, 1.4));
         borner();
     }
@@ -80,51 +146,74 @@ export function creerRendu(canvas) {
         ctx.setTransform(densite, 0, 0, densite, 0, 0);
     }
 
-    const caseSous = (px, py) => {
+    function caseSous(px, py) {
         if (!partie) return -1;
-        const x = Math.floor((px - vue.x - MARGE * vue.echelle) / (CASE * vue.echelle));
-        const y = Math.floor((py - vue.y - MARGE * vue.echelle) / (CASE * vue.echelle));
-        if (x < 0 || y < 0 || x >= partie.plateau.colonnes || y >= partie.plateau.lignes) return -1;
-        return y * partie.plateau.colonnes + x;
-    };
+        const { colonnes, lignes } = partie.plateau;
+        const mx = (px - vue.x) / vue.echelle;
+        const my = (py - vue.y) / vue.echelle;
+        const estimation = geometrie.approche(mx, my);
+
+        let meilleur = -1;
+        let meilleureDistance = Infinity;
+        for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+                const x = estimation.x + dx;
+                const y = estimation.y + dy;
+                if (x < 0 || y < 0 || x >= colonnes || y >= lignes) continue;
+                const { cx, cy } = geometrie.centre(x, y);
+                const distance = (cx - mx) ** 2 + (cy - my) ** 2;
+                if (distance < meilleureDistance) {
+                    meilleureDistance = distance;
+                    meilleur = y * colonnes + x;
+                }
+            }
+        }
+        // Au-dela d'un demi-pas, le doigt est tombe entre deux mondes : on
+        // preferera ne rien faire plutot que de creuser une case au hasard.
+        return meilleureDistance <= (CASE * 0.62) ** 2 ? meilleur : -1;
+    }
 
     // ------------------------------------------------------------- dessins
 
-    function dessinerDrapeau(x, y, taille, pale) {
-        const u = taille / 34;
+    const tracer = (cx, cy, couleur) => {
+        ctx.fillStyle = couleur;
+        ctx.beginPath();
+        geometrie.contour(ctx, cx, cy, geometrie.marge);
+        ctx.fill();
+    };
+
+    function dessinerDrapeau(cx, cy, pale) {
+        const u = CASE / 34;
+        const x = cx - 17 * u;
+        const y = cy - 17 * u;
         ctx.strokeStyle = pale ? '#6b7484' : '#d7dde8';
         ctx.lineWidth = 2 * u;
         ctx.lineCap = 'round';
         ctx.beginPath();
-        ctx.moveTo(x + 13 * u, y + 8 * u);
+        ctx.moveTo(x + 13 * u, y + 9 * u);
         ctx.lineTo(x + 13 * u, y + 25 * u);
-        ctx.stroke();
-
-        ctx.beginPath();
         ctx.moveTo(x + 9 * u, y + 26 * u);
         ctx.lineTo(x + 21 * u, y + 26 * u);
         ctx.stroke();
 
         ctx.fillStyle = pale ? '#7c5560' : '#e7002a';
         ctx.beginPath();
-        ctx.moveTo(x + 13 * u, y + 8 * u);
-        ctx.lineTo(x + 25 * u, y + 13 * u);
+        ctx.moveTo(x + 13 * u, y + 9 * u);
+        ctx.lineTo(x + 24 * u, y + 13.5 * u);
         ctx.lineTo(x + 13 * u, y + 18 * u);
         ctx.closePath();
         ctx.fill();
     }
 
-    function dessinerMine(x, y, taille, couleur) {
-        const u = taille / 34;
-        const cx = x + 17 * u;
-        const cy = y + 17 * u;
+    function dessinerMine(cx, cy, echelle, couleur) {
+        const u = (CASE / 34) * echelle;
         ctx.strokeStyle = couleur;
         ctx.lineWidth = 2 * u;
         ctx.beginPath();
-        for (let angle = 0; angle < 8; angle++) {
-            const a = (angle * Math.PI) / 4;
-            ctx.moveTo(cx + Math.cos(a) * 4 * u, cy + Math.sin(a) * 4 * u);
-            ctx.lineTo(cx + Math.cos(a) * 10 * u, cy + Math.sin(a) * 10 * u);
+        for (let branche = 0; branche < 8; branche++) {
+            const angle = (branche * Math.PI) / 4;
+            ctx.moveTo(cx + Math.cos(angle) * 4 * u, cy + Math.sin(angle) * 4 * u);
+            ctx.lineTo(cx + Math.cos(angle) * 10 * u, cy + Math.sin(angle) * 10 * u);
         }
         ctx.stroke();
 
@@ -139,110 +228,100 @@ export function creerRendu(canvas) {
         ctx.fill();
     }
 
+    function dessinerTexte(texte, cx, cy, couleur, taille) {
+        ctx.fillStyle = couleur;
+        ctx.font = `700 ${Math.round(taille)}px "SF Mono", ui-monospace, Menlo, monospace`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(texte, cx, cy + 1);
+    }
+
+    function dessinerCouvercle(cx, cy, index, alpha = 1) {
+        const enfoncee = enfoncees.has(index);
+        ctx.globalAlpha = alpha;
+        tracer(cx, cy, enfoncee ? COUVERCLE_ENFONCE : COUVERCLE);
+
+        if (soulignees.has(index)) {
+            ctx.strokeStyle = '#ffbd00';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            geometrie.contour(ctx, cx, cy, geometrie.marge + 1.5);
+            ctx.stroke();
+        }
+        ctx.globalAlpha = 1;
+    }
+
     function dessinerCase(index, temps) {
-        const colonnes = partie.plateau.colonnes;
-        const x = MARGE + (index % colonnes) * CASE;
-        const y = MARGE + Math.floor(index / colonnes) * CASE;
+        const { cx, cy } = centreDe(index);
         const etat = partie.etat[index];
         const animation = animations.get(index);
 
         let avancement = 1;
-        if (animation && animation.type === 'revelation') {
+        if (animation?.type === 'revelation') {
             avancement = (temps - animation.debut) / DUREE_REVELATION;
             if (avancement < 0) {
-                dessinerCouvercle(x, y, index);   // pas encore son tour
+                dessinerCouvercle(cx, cy, index);   // pas encore son tour
                 return;
             }
             if (avancement >= 1) animations.delete(index);
             else avancement = attenuation(Math.min(1, avancement));
         }
 
-        if (etat === REVELEE) {
-            const explosee = partie.explosee[index] === 1;
+        if (etat !== REVELEE) {
+            dessinerCouvercle(cx, cy, index);
 
-            ctx.fillStyle = explosee ? '#5a1420' : '#171e2b';
-            ctx.beginPath();
-            arrondi(ctx, x + 1, y + 1, CASE - 2, CASE - 2, 5);
-            ctx.fill();
-
-            if (avancement < 1) {
-                // le couvercle s'efface par-dessus la case ouverte
-                ctx.globalAlpha = 1 - avancement;
-                dessinerCouvercle(x, y, index, 1 - avancement);
-                ctx.globalAlpha = 1;
-            }
-
-            if (partie.mines[index]) {
-                const eclat = animations.get(index);
-                let echelleMine = 1;
-                if (eclat && eclat.type === 'explosion') {
-                    const t = Math.min(1, (temps - eclat.debut) / DUREE_EXPLOSION);
-                    if (t >= 1) animations.delete(index);
-                    echelleMine = 1 + Math.sin(Math.min(t, 1) * Math.PI) * 0.35;
-                    ctx.fillStyle = `rgba(231,0,42,${0.55 * (1 - t)})`;
+            if (etat === DRAPEAU) {
+                // Un drapeau pose la ou il n'y avait pas de mine se barre a la fin.
+                const errone = partie.statut === PERDU && !partie.mines[index];
+                dessinerDrapeau(cx, cy, errone);
+                if (errone) {
+                    ctx.strokeStyle = '#e7002a';
+                    ctx.lineWidth = 2;
                     ctx.beginPath();
-                    arrondi(ctx, x + 1, y + 1, CASE - 2, CASE - 2, 5);
-                    ctx.fill();
+                    ctx.moveTo(cx - 9, cy - 9);
+                    ctx.lineTo(cx + 9, cy + 9);
+                    ctx.stroke();
                 }
-                const taille = CASE * echelleMine;
-                dessinerMine(x - (taille - CASE) / 2, y - (taille - CASE) / 2, taille,
-                    explosee ? '#ffd7dd' : '#8b95a5');
-                return;
-            }
-
-            const chiffre = partie.chiffres[index];
-            if (chiffre > 0) {
-                ctx.globalAlpha = avancement;
-                ctx.fillStyle = COULEURS_CHIFFRES[chiffre];
-                ctx.font = `700 ${Math.round(CASE * 0.58)}px "SF Mono", ui-monospace, Menlo, monospace`;
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText(String(chiffre), x + CASE / 2, y + CASE / 2 + 1);
-                ctx.globalAlpha = 1;
+            } else if (etat === DOUTE) {
+                dessinerTexte('?', cx, cy, '#8b95a5', CASE * 0.54);
             }
             return;
         }
 
-        dessinerCouvercle(x, y, index);
+        const explosee = partie.explosee[index] === 1;
+        tracer(cx, cy, explosee ? CREUX_EXPLOSE : CREUX);
 
-        if (etat === DRAPEAU) {
-            // Un drapeau pose la ou il n'y avait pas de mine se barre en fin de partie.
-            const errone = partie.statut === PERDU && !partie.mines[index];
-            dessinerDrapeau(x, y, CASE, errone);
-            if (errone) {
-                ctx.strokeStyle = '#e7002a';
-                ctx.lineWidth = 2;
+        if (avancement < 1) {
+            ctx.globalAlpha = 1 - avancement;
+            dessinerCouvercle(cx, cy, index, 1 - avancement);
+            ctx.globalAlpha = 1;
+        }
+
+        if (partie.mines[index]) {
+            const eclat = animations.get(index);
+            let grossissement = 1;
+            if (eclat?.type === 'explosion') {
+                const t = Math.min(1, (temps - eclat.debut) / DUREE_EXPLOSION);
+                if (t >= 1) animations.delete(index);
+                grossissement = 1 + Math.sin(t * Math.PI) * 0.35;
+                ctx.fillStyle = `rgba(231,0,42,${0.55 * (1 - t)})`;
                 ctx.beginPath();
-                ctx.moveTo(x + 7, y + 7);
-                ctx.lineTo(x + CASE - 7, y + CASE - 7);
-                ctx.stroke();
+                geometrie.contour(ctx, cx, cy, geometrie.marge);
+                ctx.fill();
             }
-        } else if (etat === DOUTE) {
-            ctx.fillStyle = '#8b95a5';
-            ctx.font = `700 ${Math.round(CASE * 0.54)}px system-ui, sans-serif`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('?', x + CASE / 2, y + CASE / 2 + 1);
+            dessinerMine(cx, cy, grossissement, explosee ? '#ffd7dd' : '#8b95a5');
+            return;
         }
-    }
 
-    function dessinerCouvercle(x, y, index, alpha = 1) {
-        const enfoncee = enfoncees.has(index);
-        ctx.globalAlpha = alpha;
-        ctx.fillStyle = enfoncee ? '#232c3d' : '#2b3445';
-        ctx.beginPath();
-        arrondi(ctx, x + 1, y + 1, CASE - 2, CASE - 2, 6);
-        ctx.fill();
+        // Le texte affiche n'est pas toujours le chiffre : les variantes
+        // « menteur » et « flou » le maquillent, la couleur suit la valeur lue.
+        const libelle = partie.libelles?.[index] ?? String(partie.chiffres[index]);
+        if (libelle === '0' || libelle === '') return;
 
-        if (!enfoncee) {
-            // un filet clair en haut suffit a donner du relief sans imiter Windows
-            ctx.strokeStyle = 'rgba(255,255,255,0.07)';
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(x + 4, y + 2);
-            ctx.lineTo(x + CASE - 4, y + 2);
-            ctx.stroke();
-        }
+        ctx.globalAlpha = avancement;
+        const nominal = Math.min(8, Math.max(1, Number.parseInt(libelle, 10) || 1));
+        const taille = libelle.length > 1 ? CASE * 0.36 : CASE * 0.58;
+        dessinerTexte(libelle, cx, cy, COULEURS_CHIFFRES[nominal], taille);
         ctx.globalAlpha = 1;
     }
 
@@ -251,7 +330,7 @@ export function creerRendu(canvas) {
     function dessiner(temps = performance.now()) {
         if (!partie) return false;
 
-        ctx.fillStyle = '#090d13';
+        ctx.fillStyle = FOND;
         ctx.fillRect(0, 0, largeur, hauteur);
 
         ctx.save();
@@ -271,15 +350,25 @@ export function creerRendu(canvas) {
     return {
         vue,
         enfoncees,
+        soulignees,
         get partie() { return partie; },
+
         attacher(nouvelle) {
             partie = nouvelle;
+            geometrie = GEOMETRIES[nouvelle.plateau.geometrie] ?? GEOMETRIES.carre;
             animations.clear();
             enfoncees.clear();
+            soulignees.clear();
             ajusterVue();
         },
+
         redimensionner,
         ajusterVue,
+        deborde: () => {
+            const { largeur: largeurMonde, hauteur: hauteurMonde } = monde();
+            return largeurMonde * vue.echelle > largeur + 1
+                || hauteurMonde * vue.echelle > hauteur + 1;
+        },
         borner,
         caseSous,
         dessiner,
@@ -289,6 +378,7 @@ export function creerRendu(canvas) {
                 animations.set(index, { type: 'revelation', debut: depart + vague * DECALAGE_VAGUE });
             }
         },
+
         animerExplosion(index, depart = performance.now()) {
             animations.set(index, { type: 'explosion', debut: depart });
             secousse = depart + 260;

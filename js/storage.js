@@ -15,7 +15,10 @@ export const PREFERENCES_PAR_DEFAUT = {
     lignes: 9,
     mines: 10,
     sansHasard: true,
-    vies: 1,
+    topologie: 'carre',
+    enroule: false,
+    chiffres: 'exacts',
+    rythme: 'classique',
     doutes: false,
     vibration: true,
     modeDrapeau: false
@@ -39,9 +42,21 @@ const ecrire = (cle, valeur) => {
 export const chargerPreferences = () => lire(CLE_PREFERENCES, PREFERENCES_PAR_DEFAUT);
 export const enregistrerPreferences = preferences => ecrire(CLE_PREFERENCES, preferences);
 
-export function cleDeClassement({ difficulte, colonnes, lignes, mines, sansHasard, vies }) {
+// Un temps ne se compare qu'a ce qui lui ressemble : la forme du plateau et la
+// sincerite des chiffres changent trop la difficulte pour melanger les tableaux.
+export function cleDeClassement(config) {
+    const { difficulte, colonnes, lignes, mines } = config;
     const format = difficulte === 'perso' ? `perso-${colonnes}x${lignes}-${mines}` : difficulte;
-    return `${format}|${sansHasard ? 'sh' : 'std'}|v${vies}`;
+
+    const traits = [
+        config.topologie === 'carre' ? null : config.topologie,
+        config.enroule ? 'tore' : null,
+        config.chiffres && config.chiffres !== 'exacts' ? config.chiffres : null,
+        config.sansHasard ? 'sh' : 'std',
+        config.rythme && config.rythme !== 'classique' ? config.rythme : null
+    ].filter(Boolean);
+
+    return [format, ...traits].join('|');
 }
 
 export const chargerRecords = () => lire(CLE_RECORDS, {});
