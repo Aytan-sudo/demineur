@@ -189,6 +189,7 @@ export function refletDesReglages(preferences) {
     $('option-enroule').checked = preferences.enroule;
     $('option-sans-hasard').checked = preferences.sansHasard;
     $('option-doutes').checked = preferences.doutes;
+    $('option-sons').checked = preferences.sons;
     $('option-vibration').checked = preferences.vibration;
 
     majRecords();

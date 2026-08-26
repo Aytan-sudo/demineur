@@ -8,6 +8,21 @@ se termine par la seule logique. Plus de 50/50 en fin de partie, plus de clic
 au jugé qui efface trois minutes de déduction. Et cette promesse tient pour
 toutes les variantes, hexagones et chiffres menteurs compris.
 
+## Version 1.1.0
+
+- **sons de synthèse** en option — l'accord, l'explosion, la victoire, la
+  défaite, l'indice. **Creuser et marquer restent muets** : on clique beaucoup
+  au démineur, et une note par case ferait un crépitement ;
+- numéro de version au bas des réglages, lu depuis le code réellement chargé ;
+- service worker : cache `demineur-v3` → `demineur-1.1.0`, et
+  `assets/icon-180.png` rejoint la coquille hors ligne, où il manquait depuis
+  toujours ;
+- intégration continue : `npm test` et le nouveau `npm run check` à chaque
+  poussée ;
+- tests structurels complétés — concordance des trois versions, coquille sans
+  oubli ni fantôme, chaque module relié à l'application et couvert par
+  `node --check`, chaque suite bien lancée par `npm test`.
+
 ## Jouer
 
 - **Au doigt** — un appui creuse, un appui long pose un drapeau. Le bouton du
@@ -80,7 +95,7 @@ au palmarès.
 
 ## Comment c'est fait
 
-Le jeu tient en douze modules ES, chargés directement par le navigateur. Aucune
+Le jeu tient en quinze modules ES, chargés directement par le navigateur. Aucune
 étape de compilation, aucun paquet à installer pour jouer.
 
 ```
@@ -94,8 +109,10 @@ js/hasard.js     un générateur aléatoire qu'on peut rejouer à l'identique
 js/themes.js     la liste des thèmes et leur ordre
 js/render.js     dessin sur canvas, zoom et déplacement
 js/input.js      souris, doigt et stylet
+js/son.js        cinq timbres de synthèse, pas un octet d'audio
 js/storage.js    préférences et records
 js/ui.js         compteurs, bandeau et dialogues
+js/config.js     le numéro de version, à un seul endroit
 js/app.js        assemblage
 ```
 
@@ -132,6 +149,32 @@ Un test compare chaque palette à celle de référence — une variable oubliée
 provoque aucune erreur, elle laisse juste une couleur claire au milieu d'un
 thème sombre, ce qui se remarque tard et se cherche longtemps.
 
+### Le son
+
+Cinq timbres, tous synthétisés à la volée : le dépôt ne contient aucun fichier
+audio. Deux décisions les gouvernent.
+
+**Creuser et marquer sont muets.** Ce sont les deux gestes les plus fréquents du
+jeu — on ouvre parfois trente cases en dix secondes — et leur donner une note en
+ferait un crépitement dont on couperait le son au bout d'une partie. Le son ne
+commente donc pas le geste : il marque les cinq moments qui comptent. L'accord
+réussi, parce qu'il récompense une déduction ; l'explosion ; la victoire ; la
+défaite ; l'indice, qui coûte quinze secondes et mérite qu'on l'entende.
+
+**Rien ne descend sous 300 Hz.** Un haut-parleur de téléphone ne restitue à peu
+près rien en dessous, et l'oreille y est de surcroît bien moins sensible à
+faible volume : une note écrite plus bas ne lève aucune erreur, elle part
+simplement sans arriver. L'explosion dit donc non par la chute — 760 Hz qui
+tombent à 320 — et non par la profondeur. En trois vies ou en zen, une mine qui
+coûte un cœur joue le même timbre en plus court et plus discret : un accroc,
+pas une fin.
+
+Un troisième piège est propre à ce jeu-ci. iOS ne laisse démarrer un contexte
+audio que depuis un événement d'activation, et le premier son du démineur peut
+fort bien naître d'un `setTimeout` — le drapeau par appui long — ou d'un tic
+d'horloge, en blitz. Le contexte est donc préparé dès le premier geste, avant
+que le jeu n'ait une note à demander.
+
 ### Le solveur
 
 Il travaille par étages, du moins cher au plus cher, et s'arrête dès que l'un
@@ -158,15 +201,19 @@ plateau et de chiffres se composent toutes en quelques millisecondes.
 ## Développement
 
 ```bash
-npm test        # 181 vérifications, dont le noyau complet sans navigateur
-npm run serve   # http://localhost:8765
+npm test        # 215 vérifications, dont le noyau complet sans navigateur
+npm run check   # node --check sur chaque module
+npm run serve   # http://localhost:8767
 ```
 
 Le noyau (plateau, variantes, solveur, générateur, règles, défi, classement) ne
 touche pas au DOM : il se teste directement en Node. S'y ajoutent des
 vérifications structurelles — palettes complètes, modules tous déclarés au
 service worker, identifiants cherchés par l'interface bien présents dans la
-page — qui attrapent les fautes qui ne lèvent aucune erreur.
+page, version concordante entre `package.json`, l'affichage et le cache — qui
+attrapent les fautes qui ne lèvent aucune erreur. Le son a les siennes : le
+vrai module tourne contre un contexte audio factice, et le test relève les
+hauteurs réellement émises, cibles de rampes comprises.
 
 ## Ce qui n'est pas là
 
@@ -175,6 +222,10 @@ sont pas. Elles demandent des variables non binaires dans tout le solveur :
 l'énumération passe de `2ⁿ` à `3ⁿ`, ce qui obligerait à réduire sa portée pour
 *toutes* les variantes, y compris le démineur ordinaire. Livrer cette variante
 aurait coûté de la qualité aux onze autres.
+
+**Un son sur chaque case** — creuser et marquer resteront muets. Ce n'est pas
+un oubli : c'est la seule façon que le son du jeu reste supportable après dix
+minutes.
 
 La grille est dessinée sur un canvas : elle n'est pas lisible par un lecteur
 d'écran, et il n'y a pas de navigation au clavier case par case.

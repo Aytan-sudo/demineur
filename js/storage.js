@@ -21,6 +21,7 @@ export const PREFERENCES_PAR_DEFAUT = {
     rythme: 'classique',
     theme: 'clair',
     doutes: false,
+    sons: true,
     vibration: true,
     modeDrapeau: false
 };

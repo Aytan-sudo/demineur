@@ -27,6 +27,7 @@ const COQUILLE = [
     'js/hasard.js',
     'js/render.js',
     'js/input.js',
+    'js/son.js',
     'js/storage.js',
     'js/ui.js',
     'manifest.webmanifest',

@@ -10,6 +10,10 @@ import { defiDuJour, texteDePartage } from './defi.js';
 import { generateurAleatoire } from './hasard.js';
 import { themeSuivant, libelleDuTheme } from './themes.js';
 import {
+    sonAccord, sonExplosion, sonVictoire, sonDefaite, sonIndice,
+    preparerSon, surveillerVisibilite
+} from './son.js';
+import {
     chargerPreferences, enregistrerPreferences,
     cleDeClassement, enregistrerRecord, enregistrerPartie, effacerStats
 } from './storage.js';
@@ -103,6 +107,7 @@ function nouvellePartie() {
 }
 
 const vibrer = motif => { if (preferences.vibration) navigator.vibrate?.(motif); };
+const sonner = (timbre, ...arguments_) => { if (preferences.sons) timbre(...arguments_); };
 
 // Une seule porte de sortie pour les issues possibles d'un geste : ca evite
 // d'oublier le chrono ou les stats sur l'un des chemins.
@@ -114,6 +119,9 @@ function appliquer(resultat) {
         rendu.animerExplosion(index);
         vibrer([30, 40, 60]);
     }
+    // Un accord peut faire sauter plusieurs mines d'un coup : une detonation
+    // par mine ferait une bouillie, on n'en joue qu'une pour le geste.
+    if (resultat.explosions?.length) sonner(sonExplosion, { fatale: partie.statut === jeu.PERDU });
     if (resultat.revelees?.length || resultat.explosions?.length) rendu.soulignees.clear();
 
     ui.majVies(partie.viesRestantes, partie.config.vies);
@@ -137,6 +145,7 @@ function terminer() {
     const gagne = partie.statut === jeu.GAGNE;
     ui.majVisage(gagne ? '😎' : '😵');
     enregistrerPartie(gagne);
+    sonner(gagne ? sonVictoire : sonDefaite);
 
     const tempsEcoule = jeu.tempsEcoule(partie);
     let record;
@@ -167,7 +176,13 @@ brancherEntrees(ui.elements.canvas, rendu, {
     modeDrapeau: () => preferences.modeDrapeau,
     rafraichir: demanderRendu,
     reveler: index => appliquer(jeu.reveler(partie, index)),
-    accord: index => appliquer(jeu.accord(partie, index)),
+    accord: index => {
+        const resultat = jeu.accord(partie, index);
+        // La recompense va a la deduction juste : si l'accord fait sauter une
+        // mine, c'est la detonation qui parle, pas l'accord.
+        if (!resultat.refuse && !resultat.explosions.length) sonner(sonAccord);
+        appliquer(resultat);
+    },
     drapeau: index => {
         const resultat = jeu.basculerDrapeau(partie, index, { doutes: preferences.doutes });
         if (!resultat.refuse) vibrer(12);
@@ -193,6 +208,7 @@ ui.elements.indice.addEventListener('click', () => {
             : 'Rien de certain à cet instant');
         return;
     }
+    sonner(sonIndice);
     rendu.soulignees.clear();
     rendu.soulignees.add(conseil.index);
     ui.annoncer(conseil.genre === 'sure'
@@ -341,6 +357,9 @@ const interrupteurs = {
     'option-enroule': valeur => { preferences.enroule = valeur; },
     'option-sans-hasard': valeur => { preferences.sansHasard = valeur; },
     'option-doutes': valeur => { preferences.doutes = valeur; },
+    // Rallumer le son sans rien entendre laisse dans le doute : la note de
+    // l'indice sert d'accuse de reception.
+    'option-sons': valeur => { preferences.sons = valeur; if (valeur) sonIndice(); },
     'option-vibration': valeur => { preferences.vibration = valeur; }
 };
 
@@ -372,6 +391,13 @@ window.addEventListener('keydown', evenement => {
     if (evenement.key === 'h' || evenement.key === 'H') ui.elements.indice.click();
     if (evenement.key === 't' || evenement.key === 'T') ui.elements.boutonTheme.click();
 });
+
+// iOS ne demarre un contexte audio que depuis un evenement d'activation, et le
+// premier son du Demineur peut fort bien naitre d'un `setTimeout` (le drapeau
+// par appui long) ou du chrono (le sablier du blitz) : on prepare le contexte
+// des le premier geste, avant d'avoir une note a demander.
+preparerSon(document, () => preferences.sons);
+surveillerVisibilite(document);
 
 rendu.redimensionner();
 choisirTheme(preferences.theme);
