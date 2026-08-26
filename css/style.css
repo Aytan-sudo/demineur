@@ -695,6 +695,10 @@ main {
 .records li span:last-child { font-variant-numeric: tabular-nums; font-weight: 600; }
 .records .vide { color: var(--muted); justify-content: center; border: none; }
 
+/* Le numero de version, au bas des reglages : discret, mais toujours lisible.
+   C'est lui qu'on va lire quand le jeu semble ne pas s'etre mis a jour. */
+.version { margin: 1.2rem 0 0; text-align: center; font-size: 0.78rem; color: var(--muted); }
+
 .rules { list-style: none; margin: 0 0 0.8rem; padding: 0; display: grid; gap: 0.5rem; }
 .rules li { display: flex; align-items: center; gap: 0.7rem; color: var(--texte-doux); }
 

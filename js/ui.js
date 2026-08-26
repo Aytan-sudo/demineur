@@ -6,6 +6,7 @@ import { MODES_CHIFFRES, RYTHMES } from './variantes.js';
 import { chargerRecords, chargerStats } from './storage.js';
 import { resumeDe } from './defi.js';
 import { THEMES, themeConnu, THEME_PAR_DEFAUT } from './themes.js';
+import { VERSION } from './config.js';
 
 const $ = identifiant => document.getElementById(identifiant);
 
@@ -72,6 +73,10 @@ function construireSegmentsDeTheme() {
 }
 
 construireSegmentsDeTheme();
+
+// Le numero vient du code charge, pas du HTML : si un vieux service worker sert
+// encore ses fichiers, c'est son numero qui s'affiche, et on le voit.
+$('version').textContent = `Démineur ${VERSION}`;
 
 // Applique le theme et accorde la barre du navigateur avec : sur telephone,
 // une barre d'adresse restee sombre au-dessus d'une page claire se voit.

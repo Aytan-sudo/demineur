@@ -5,13 +5,18 @@
 // en secours. Le cache-first serait plus rapide et c'est un piege : un `git
 // push` resterait invisible pour tous ceux qui ont deja ouvert le jeu, jusqu'a
 // ce qu'on pense a changer VERSION a la main.
+//
+// Le nom du cache porte exactement la version du jeu : un cache qui ne change
+// pas de nom continue de servir l'ancien jeu, et rien ne le signale. Un test
+// compare ce numero a celui de package.json et a celui de js/config.js.
 
-const VERSION = 'demineur-v3';
+const VERSION = 'demineur-1.1.0';
 const COQUILLE = [
     './',
     'index.html',
     'css/style.css',
     'js/app.js',
+    'js/config.js',
     'js/engine.js',
     'js/board.js',
     'js/solver.js',
@@ -26,6 +31,7 @@ const COQUILLE = [
     'js/ui.js',
     'manifest.webmanifest',
     'assets/icon.svg',
+    'assets/icon-180.png',
     'assets/icon-192.png',
     'assets/icon-512.png'
 ];
