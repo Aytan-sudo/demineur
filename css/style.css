@@ -325,8 +325,8 @@ body {
     /* sans cette ligne, les boutons se font ecraser par le titre sur un
        telephone etroit, et le premier finit en ovale coupe */
     flex: 0 0 auto;
-    width: 2.2rem;
-    height: 2.2rem;
+    width: 2.75rem;
+    height: 2.75rem;
     border: 1px solid var(--border);
     border-radius: 50%;
     background: var(--panel);
@@ -420,8 +420,8 @@ body {
 @keyframes pouls { 50% { opacity: 0.45; } }
 
 .visage {
-    width: 2.6rem;
-    height: 2.6rem;
+    width: 2.75rem;
+    height: 2.75rem;
     border-radius: var(--radius);
     border: 1px solid var(--border);
     background: var(--panel-clair);

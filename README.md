@@ -8,6 +8,11 @@ se termine par la seule logique. Plus de 50/50 en fin de partie, plus de clic
 au jugé qui efface trois minutes de déduction. Et cette promesse tient pour
 toutes les variantes, hexagones et chiffres menteurs compris.
 
+## Version 1.1.1
+
+- les cibles tactiles de l'interface passent à 44 px (boutons d'en-tête,
+  boutons texte, listes déroulantes), conformément à la convention.
+
 ## Version 1.1.0
 
 - **sons de synthèse** en option — l'accord, l'explosion, la victoire, la
