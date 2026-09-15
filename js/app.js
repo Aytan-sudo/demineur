@@ -15,7 +15,8 @@ import {
 } from './son.js';
 import {
     chargerPreferences, enregistrerPreferences,
-    cleDeClassement, enregistrerRecord, enregistrerPartie, effacerStats
+    cleDeClassement, enregistrerRecord, enregistrerPartie, effacerStats,
+    compterPartiePasseport
 } from './storage.js';
 
 const preferences = chargerPreferences();
@@ -145,6 +146,11 @@ function terminer() {
     const gagne = partie.statut === jeu.GAGNE;
     ui.majVisage(gagne ? '😎' : '😵');
     enregistrerPartie(gagne);
+    // Passeport : une grille déminée donne le tampon Logique tout de suite ;
+    // sinon, la dixième partie jouée jusqu'au bout dans la journée.
+    const joueur = globalThis.Passeport;
+    const parties = compterPartiePasseport(joueur?.jourLocal());
+    if (parties !== null) joueur.noter('demineur', parties, gagne);
     sonner(gagne ? sonVictoire : sonDefaite);
 
     const tempsEcoule = jeu.tempsEcoule(partie);

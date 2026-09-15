@@ -1,4 +1,4 @@
-import { cleDeClassement } from '../js/storage.js';
+import { cleDeClassement, compterPartiePasseport } from '../js/storage.js';
 import { counter } from './harness.mjs';
 
 const { check, report } = counter();
@@ -46,5 +46,18 @@ check('deux configurations differentes ne partagent jamais leur cle',
         cleDeClassement({ ...base, rythme: 'zen' }),
         cleDeClassement({ ...base, difficulte: 'expert' })
     ]).size === 5);
+
+console.log('\nPasseport\n');
+
+// Le compteur de parties du tampon Logique : il vit dans l'espace du joueur,
+// repart a zero chaque jour, et ne tourne pas en mode invite.
+const coffre = new Map();
+const espace = { getItem: cle => coffre.get(cle) ?? null, setItem: (cle, valeur) => coffre.set(cle, String(valeur)) };
+check('en mode invite, rien n\'est compte', compterPartiePasseport('2026-09-15') === null);
+for (let i = 0; i < 9; i++) compterPartiePasseport('2026-09-15', espace);
+check('la dixieme partie du jour atteint dix', compterPartiePasseport('2026-09-15', espace) === 10);
+check('le lendemain, on repart de un', compterPartiePasseport('2026-09-16', espace) === 1);
+coffre.set('demineur.passeport', '{casse');
+check('un compteur illisible repart proprement', compterPartiePasseport('2026-09-16', espace) === 1);
 
 report();

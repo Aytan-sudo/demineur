@@ -10,10 +10,13 @@
 // pas de nom continue de servir l'ancien jeu, et rien ne le signale. Un test
 // compare ce numero a celui de package.json et a celui de js/config.js.
 
-const VERSION = 'demineur-1.1.1';
+const VERSION = 'demineur-1.2.0';
 const COQUILLE = [
     './',
     'index.html',
+    'commun/passeport.js',
+    'commun/liaison.js',
+    'commun/passeport.css',
     'css/style.css',
     'js/app.js',
     'js/config.js',

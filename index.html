@@ -10,11 +10,16 @@
 <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="assets/icon-180.png">
 <link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="commun/passeport.css">
+<script src="commun/passeport.js"></script>
+<script src="commun/liaison.js" defer></script>
 <script>
     // Pose le theme avant le premier rendu. Charge par le module app.js, il
-    // arriverait apres coup et l'ecran clignoterait a chaque ouverture.
+    // arriverait apres coup et l'ecran clignoterait a chaque ouverture. Ouvert
+    // depuis le hub, le jeu lit les preferences rangees dans le passeport.
     try {
-        const enregistrees = JSON.parse(localStorage.getItem('demineur.preferences') || '{}');
+        const magasin = Passeport.stockageJeu('demineur') || localStorage;
+        const enregistrees = JSON.parse(magasin.getItem('demineur.preferences') || '{}');
         // Liste blanche : la valeur vient du stockage, elle atterrit dans un
         // attribut, et un theme inconnu retomberait de toute facon sur le clair.
         if (/^[a-z]{4,12}$/.test(enregistrees.theme || '')) {
@@ -24,6 +29,8 @@
 </script>
 </head>
 <body>
+
+<div class="passeport-ruban" data-passeport-ruban data-jeu="demineur" data-consigne="Tampon : une grille déminée ou 10 parties"></div>
 
 <header class="topbar">
     <button type="button" class="icon-button" id="bouton-aide" aria-label="Règles du jeu">?</button>

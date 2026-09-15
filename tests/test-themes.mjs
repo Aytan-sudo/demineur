@@ -95,7 +95,7 @@ check('la feuille de style fournit tout ce que le canvas y cherche',
 // Le theme est pose par un script en tete de page, avant le premier rendu :
 // charge comme module, il arriverait apres et l'ecran clignoterait.
 check('la page pose le theme avant de s\'afficher',
-    page.includes('localStorage.getItem(\'demineur.preferences\')')
+    page.includes('getItem(\'demineur.preferences\')')
     && page.indexOf('demineur.preferences') < page.indexOf('<body'));
 
 report();

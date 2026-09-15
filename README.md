@@ -8,6 +8,15 @@ se termine par la seule logique. Plus de 50/50 en fin de partie, plus de clic
 au jugé qui efface trois minutes de déduction. Et cette promesse tient pour
 toutes les variantes, hexagones et chiffres menteurs compris.
 
+## Version 1.2.0 — Le passeport commun
+
+Ouvert depuis le hub avec un passeport, le jeu range préférences, records et
+statistiques dans l’espace du joueur ; en mode invité, rien ne change. Une
+grille déminée donne le tampon **Logique** tout de suite ; sinon, la dixième
+partie jouée jusqu’au bout dans la journée le donne aussi, explosions
+comprises. Le bandeau du passeport ramène au hub. Les fichiers `commun/`
+viennent du hub et sont précachés.
+
 ## Version 1.1.1
 
 - les cibles tactiles de l'interface passent à 44 px (boutons d'en-tête,

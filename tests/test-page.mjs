@@ -97,7 +97,7 @@ check('le viewport verrouille le zoom tactile', page.includes('user-scalable=no'
 // Le script pose-theme est recopie a la main dans le HTML : s'il lit une autre
 // cle que le module de stockage, le theme clignote a chaque ouverture.
 check('le script d\'amorce lit la meme cle que le stockage',
-    page.includes("localStorage.getItem('demineur.preferences')")
+    page.includes("getItem('demineur.preferences')")
     && lire('js/storage.js').includes("CLE_PREFERENCES = 'demineur.preferences'"));
 
 // Le manifeste porte l'identite du jeu : un champ perdu casse l'installation

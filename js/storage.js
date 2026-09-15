@@ -8,6 +8,12 @@
 const CLE_PREFERENCES = 'demineur.preferences';
 const CLE_RECORDS = 'demineur.records';
 const CLE_STATS = 'demineur.stats';
+const CLE_PASSEPORT = 'demineur.passeport';
+
+// Ouvert depuis le hub avec un passeport, le jeu range tout dans l'espace du
+// joueur ; en mode invité, directement dans localStorage, comme avant.
+const passeport = globalThis.Passeport?.stockageJeu('demineur') ?? null;
+const magasin = () => passeport ?? localStorage;
 
 export const PREFERENCES_PAR_DEFAUT = {
     difficulte: 'facile',
@@ -28,7 +34,7 @@ export const PREFERENCES_PAR_DEFAUT = {
 
 const lire = (cle, secours) => {
     try {
-        const brut = localStorage.getItem(cle);
+        const brut = magasin().getItem(cle);
         return brut ? { ...secours, ...JSON.parse(brut) } : { ...secours };
     } catch {
         return { ...secours };   // navigation privee, quota plein : on joue quand meme
@@ -37,7 +43,7 @@ const lire = (cle, secours) => {
 
 const ecrire = (cle, valeur) => {
     try {
-        localStorage.setItem(cle, JSON.stringify(valeur));
+        magasin().setItem(cle, JSON.stringify(valeur));
     } catch { /* sans persistance, le jeu reste jouable */ }
 };
 
@@ -88,6 +94,18 @@ export function enregistrerPartie(gagnee) {
     }
     ecrire(CLE_STATS, stats);
     return stats;
+}
+
+// Le tampon Logique du passeport récompense une grille déminée, ou l'effort :
+// dix parties jouées jusqu'au bout dans la journée, explosions comprises.
+// Renvoie le nombre de parties du jour, ou null en mode invité (rien à compter).
+export function compterPartiePasseport(jour, coffre = passeport) {
+    if (!coffre) return null;
+    let compte = null;
+    try { compte = JSON.parse(coffre.getItem(CLE_PASSEPORT)); } catch { /* compteur illisible : on repart */ }
+    const parties = compte?.jour === jour && Number.isInteger(compte.parties) ? compte.parties + 1 : 1;
+    try { coffre.setItem(CLE_PASSEPORT, JSON.stringify({ jour, parties })); } catch { /* le passeport signale l'échec */ }
+    return parties;
 }
 
 export function effacerStats() {
