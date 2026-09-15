@@ -8,6 +8,12 @@ se termine par la seule logique. Plus de 50/50 en fin de partie, plus de clic
 au jugé qui efface trois minutes de déduction. Et cette promesse tient pour
 toutes les variantes, hexagones et chiffres menteurs compris.
 
+## Version 1.2.1 — Passeport 1.5.0
+
+Module commun du passeport 1.5.0 : L’Architecte et Solitaire rejoignent le thème
+Logique, et les jeux raccordés plus tard entrent d’office dans les profils. Rien
+ne change dans le jeu.
+
 ## Version 1.2.0 — Le passeport commun
 
 Ouvert depuis le hub avec un passeport, le jeu range préférences, records et
