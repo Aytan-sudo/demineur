@@ -8,6 +8,12 @@ se termine par la seule logique. Plus de 50/50 en fin de partie, plus de clic
 au jugé qui efface trois minutes de déduction. Et cette promesse tient pour
 toutes les variantes, hexagones et chiffres menteurs compris.
 
+## Version 1.2.3 — Passeport 1.7.0
+
+Module commun du passeport 1.7.0 : 2048 rejoint le thème Nombres, Snake ouvre le
+thème Aventure, Motamorphose le thème Mots, et Dames, Diamants, Laser & Miroirs
+et Untangle rejoignent le thème Logique. Rien ne change dans le jeu.
+
 ## Version 1.2.2 — Passeport 1.6.0
 
 Module commun du passeport 1.6.0 : Polyominos et Mosaïcomino rejoignent le thème

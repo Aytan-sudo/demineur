@@ -7,4 +7,4 @@
 // numero qui s'affiche. On voit d'un coup d'oeil si la mise a jour est arrivee
 // sur l'appareil.
 
-export const VERSION = '1.2.2';
+export const VERSION = '1.2.3';
