@@ -1,6 +1,6 @@
 {
     "name": "demineur",
-    "version": "1.2.3",
+    "version": "1.2.4",
     "private": true,
     "description": "Demineur statique, grilles garanties sans hasard, jouable hors ligne.",
     "type": "module",

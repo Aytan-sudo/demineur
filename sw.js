@@ -10,7 +10,7 @@
 // pas de nom continue de servir l'ancien jeu, et rien ne le signale. Un test
 // compare ce numero a celui de package.json et a celui de js/config.js.
 
-const VERSION = 'demineur-1.2.3';
+const VERSION = 'demineur-1.2.4';
 const COQUILLE = [
     './',
     'index.html',
