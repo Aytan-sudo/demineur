@@ -8,6 +8,12 @@ se termine par la seule logique. Plus de 50/50 en fin de partie, plus de clic
 au jugé qui efface trois minutes de déduction. Et cette promesse tient pour
 toutes les variantes, hexagones et chiffres menteurs compris.
 
+## Version 1.2.5 — Passeport 1.9.0
+
+Module commun du passeport 1.9.0 : deux jeux neufs rejoignent la collection,
+**Le compte est bon** (thème Nombres) et **La Ruche** (thème Mots). Rien ne
+change dans le jeu.
+
 ## Version 1.2.4 — Passeport 1.8.0
 
 Module commun du passeport 1.8.0 : **Maze for Adventurers** rejoint le thème
